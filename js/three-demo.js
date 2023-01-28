@@ -60,11 +60,9 @@ class DegRadHelper {
     }
   }
 
-const gui = new GUI({ width: 400 });
-
 export default function main() {
 
-    const canvas = document.querySelector('#c');
+    const canvas = document.querySelector('#three-demo');
     const renderer = new THREE.WebGLRenderer({ canvas });
     // camera
     const fov = 50;
@@ -276,6 +274,109 @@ export default function main() {
     //     const light = new THREE.PointLight(color, intensity);
     //     scene.add(light);
     //   }
+
+    { // light
+      // function makeXYZGUI(gui, vector3, name, onChangeFn) {
+      //     const folder = gui.addFolder(name);
+      //     folder.add(vector3, 'x', -10, 10).onChange(onChangeFn);
+      //     folder.add(vector3, 'y', 0, 10).onChange(onChangeFn);
+      //     folder.add(vector3, 'z', -10, 10).onChange(onChangeFn);
+      //     folder.open();
+      // }
+
+
+      // const gui = new GUI();
+      // gui.onChange(requestRenderIfNotRequested);
+
+      // // {
+      // //     const color = 0xFFFFFF;
+      // //     const intensity = 1;
+      // //     const light = new THREE.AmbientLight(color, intensity);
+      // //     scene.add(light);
+      // //     gui.addColor(new ColorGUIHelper(light, 'color'), 'value').name('color').onChange(requestRenderIfNotRequested);
+      // //     gui.add(light, 'intensity', 0, 2, 0.01).onChange(requestRenderIfNotRequested);
+
+      // // }
+
+      // // {
+      // //     const skyColor = 0xB1E1FF;  // light blue
+      // //     const groundColor = 0xB97A20;  // brownish orange
+      // //     const intensity = 1;
+      // //     const light = new THREE.HemisphereLight(skyColor, groundColor, intensity);
+      // //     scene.add(light);
+      // //     gui.addColor(new ColorGUIHelper(light, 'color'), 'value').name('color').onChange(requestRenderIfNotRequested);
+      // //     gui.addColor(new ColorGUIHelper(light, 'groundColor'), 'value').name('color').onChange(requestRenderIfNotRequested);
+      // //     gui.add(light, 'intensity', 0, 2, 0.01).onChange(requestRenderIfNotRequested);
+      // // }
+
+
+      // // {
+      // //     const color = 0xFFFFFF;
+      // //     const intensity = 1;
+      // //     const light = new THREE.DirectionalLight(color, intensity);
+      // //     light.position.set(0, 10, 0);
+      // //     light.target.position.set(-5, 0, 0);
+      // //     scene.add(light);
+      // //     scene.add(light.target);
+      
+      // //     const helper = new THREE.DirectionalLightHelper(light);
+      // //     scene.add(helper);
+
+      // //     gui.addColor(new ColorGUIHelper(light, 'color'), 'value').name('color');
+      // //     gui.add(light, 'intensity', 0, 2, 0.01);
+      // //     gui.onChange(requestRenderIfNotRequested);
+      // //     function updateLight() {
+      // //         light.target.updateMatrixWorld();
+      // //         helper.update();
+      // //     }
+      // //     makeXYZGUI(gui, light.position, 'position', updateLight);
+      // //     makeXYZGUI(gui, light.target.position, 'target', updateLight);
+      // // }
+
+      // // {
+      // //     const color = 0xFFFFFF;
+      // //     const intensity = 1;
+      // //     const light = new THREE.PointLight(color, intensity);
+      // //     light.position.set(0, 10, 0);
+      // //     scene.add(light);
+
+      // //     const helper = new THREE.PointLightHelper(light);
+      // //     scene.add(helper);
+
+
+      // //     function updateLight() {
+      // //         helper.update();
+      // //     }
+      // //     gui.addColor(new ColorGUIHelper(light, 'color'), 'value').name('color');
+      // //     gui.add(light, 'intensity', 0, 2, 0.01);
+      // //     makeXYZGUI(gui, light.position, 'position', updateLight);
+      // // }
+
+      // {
+      //     const color = 0xFFFFFF;
+      //     const intensity = 1;
+      //     const light = new THREE.SpotLight(color, intensity);
+      //     light.position.set(0, 10, 0);
+      //     light.target.position.set(-5, 0, 0);
+      //     scene.add(light);
+      //     scene.add(light.target);
+
+      //     const helper = new THREE.SpotLightHelper(light);
+      //     scene.add(helper);
+
+      //     function updateLight() {
+      //         helper.update();
+      //     }
+      //     gui.addColor(new ColorGUIHelper(light, 'color'), 'value').name('color');
+      //     gui.add(light, 'intensity', 0, 2, 0.01);
+      //     gui.onChange(requestRenderIfNotRequested);
+      //     makeXYZGUI(gui, light.position, 'position', updateLight);
+      //     makeXYZGUI(gui, light.target.position, 'position', updateLight);
+      //     gui.add(new DegRadHelper(light, 'angle'), 'value', 0, 90).name('angle').onChange(updateLight);
+      // }            
+  }
+
+
 
     const cubes = [];
     const width = 1;
