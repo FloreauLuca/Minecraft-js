@@ -335,6 +335,7 @@ class Light{
     }
 }
 
+let sceneRenderer;
 //#region UpdateWorld
 const neighborOffsets = [
     [0, 0, 0], // self
@@ -373,7 +374,7 @@ class Terrain{
 
     create_texture() {
         const loader = new THREE.TextureLoader();
-        const texture = loader.load('../data/minecraft-texture.png');
+        const texture = loader.load('./data/minecraft-texture.png', sceneRenderer.render);
         texture.magFilter = THREE.NearestFilter;
         texture.minFilter = THREE.NearestFilter;
 
@@ -479,7 +480,6 @@ export default function main() {
     const renderer = new THREE.WebGLRenderer({ canvas });
 
     //#region Render
-    let sceneRenderer;
     class SceneRenderer{
         constructor() {
             scene = new THREE.Scene();
