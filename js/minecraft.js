@@ -34,6 +34,8 @@ function randInt(min, max) {
 }
 
 const tileCount = 16;
+const cellSize = new THREE.Vector3(256, 16, 256);
+const wordlSize = new THREE.Vector3(128, 16, 128);
 
 class VoxelWorld {
     constructor(options) {
@@ -288,184 +290,150 @@ VoxelWorld.faces = [
     },
 ];
 
-export default function main() {
-    const canvas = document.querySelector('#minecraft');
-    const renderer = new THREE.WebGLRenderer({ canvas });
-
-    const fov = 45;
-    const aspect = 2;  // the canvas default
-    const near = 0.1;
-    const far = 1000;
-    const camera = new THREE.PerspectiveCamera(fov, aspect, near, far);
-    camera.position.set(256, 32, 256);
-
-    const controls = new OrbitControls(camera, canvas);
-    controls.target.set(0, 0, 0);
-    // controls.enableDamping = true;
-
-    const scene = new THREE.Scene();
-    scene.background = new THREE.Color(0x222222);
-    // scene.background = new THREE.Color('lightblue');
-
-    const gui = new GUI();
-    gui.onChange(requestRenderIfNotRequested);
-    gui.close();
-
-    //#region Light
-    {
-        const color = 0xFFFFFF;
-        const intensity = 0.7;
-        const light = new THREE.AmbientLight(color, intensity);
-        scene.add(light);
-        gui.addColor(new ColorGUIHelper(light, 'color'), 'value').name('color').onChange(requestRenderIfNotRequested);
-        gui.add(light, 'intensity', 0, 2, 0.01).onChange(requestRenderIfNotRequested);
-
+class Light{
+    constructor(scene, gui, callback) {
+        const lightFolder = gui.addFolder("Light");
+        lightFolder.onChange(callback);
+        lightFolder.close();
+        {
+            const color = 0xFFFFFF;
+            const intensity = 0.7;
+            const light = new THREE.AmbientLight(color, intensity);
+            scene.add(light);
+            lightFolder.addColor(new ColorGUIHelper(light, 'color'), 'value').name('color');
+            lightFolder.add(light, 'intensity', 0, 2, 0.01);
+    
+        }
+        function makeXYZGUI(gui, vector3, name, onChangeFn) {
+            const folder = gui.addFolder(name);
+            folder.add(vector3, 'x', -100, 100);
+            folder.add(vector3, 'y', 0, 100);
+            folder.add(vector3, 'z', -100, 100);
+            folder.open();
+        }
+        {
+            const color = 0xFFFFFF;
+            const intensity = 0.7;
+            const light = new THREE.DirectionalLight(color, intensity);
+            light.position.set(0, 35, 20);
+            light.target.position.set(25, 15, 15);
+            scene.add(light);
+            scene.add(light.target);
+    
+            const helper = new THREE.DirectionalLightHelper(light);
+            //scene.add(helper);
+    
+            lightFolder.addColor(new ColorGUIHelper(light, 'color'), 'value').name('color');
+            lightFolder.add(light, 'intensity', 0, 2, 0.01);
+            function updateLight() {
+                light.target.updateMatrixWorld();
+                helper.update();
+            }
+            makeXYZGUI(lightFolder, light.position, 'position', updateLight);
+            makeXYZGUI(lightFolder, light.target.position, 'target', updateLight);
+        }
     }
-    function makeXYZGUI(gui, vector3, name, onChangeFn) {
-        const folder = gui.addFolder(name);
-        folder.add(vector3, 'x', -100, 100).onChange(onChangeFn);
-        folder.add(vector3, 'y', 0, 100).onChange(onChangeFn);
-        folder.add(vector3, 'z', -100, 100).onChange(onChangeFn);
+}
+
+//#region UpdateWorld
+const neighborOffsets = [
+    [0, 0, 0], // self
+    [-1, 0, 0], // left
+    [1, 0, 0], // right
+    [0, -1, 0], // down
+    [0, 1, 0], // up
+    [0, 0, -1], // back
+    [0, 0, 1], // front
+];
+class Terrain{
+    constructor(gui) {
+        this.world = new VoxelWorld({
+            cellSize
+        });
+    
+        this.worldGen = new WorldGeneration({
+            cellSize
+        });
+        
+        this.cellIdToMesh = {};
+
+        this.create_gui(gui);
+        this.create_texture();
+    }
+
+    create_gui(gui)
+    {
+        const {worldGen} = this;
+        const folder = gui.addFolder("World Gen");
+        folder.add(worldGen.cellSize, 'x', 0, 2048).onFinishChange(this.generate_world);
+        folder.add(worldGen.cellSize, 'y', 0, 128).onFinishChange(this.generate_world);
+        folder.add(worldGen.cellSize, 'z', 0, 2048).onFinishChange(this.generate_world);
         folder.open();
     }
-    {
-        const color = 0xFFFFFF;
-        const intensity = 0.7;
-        const light = new THREE.DirectionalLight(color, intensity);
-        light.position.set(0, 35, 20);
-        light.target.position.set(25, 15, 15);
-        scene.add(light);
-        scene.add(light.target);
 
-        const helper = new THREE.DirectionalLightHelper(light);
-        scene.add(helper);
-
-        gui.addColor(new ColorGUIHelper(light, 'color'), 'value').name('color');
-        gui.add(light, 'intensity', 0, 2, 0.01);
-        gui.onChange(requestRenderIfNotRequested);
-        function updateLight() {
-            light.target.updateMatrixWorld();
-            helper.update();
-        }
-        makeXYZGUI(gui, light.position, 'position', updateLight);
-        makeXYZGUI(gui, light.target.position, 'target', updateLight);
-    }
-    //#endregion Light
-
-    //#region Render
-    function resizeRendererToDisplaySize(renderer) {
-        const canvas = renderer.domElement;
-        const pixelRatio = window.devicePixelRatio;
-        const width = canvas.clientWidth * pixelRatio | 0;
-        const height = canvas.clientHeight * pixelRatio | 0;
-        const needResize = canvas.width !== width || canvas.height !== height;
-        if (needResize) {
-            renderer.setSize(width, height, false);
-        }
-        return needResize;
-    }
-    let renderRequested = false;
-
-    function render() {
-        renderRequested = false;
-
-        if (resizeRendererToDisplaySize(renderer)) {
-            const canvas = renderer.domElement;
-            camera.aspect = canvas.clientWidth / canvas.clientHeight;
-            camera.updateProjectionMatrix();
-        }
-        controls.update();
-
-        renderer.render(scene, camera);
-    }
-
-    render();
-
-    function requestRenderIfNotRequested() {
-        if (!renderRequested) {
-            renderRequested = true;
-            requestAnimationFrame(render);
-        }
-    }
-
-    controls.addEventListener('change', requestRenderIfNotRequested);
-    window.addEventListener('resize', requestRenderIfNotRequested);
-    //#endregion Render
-
-    async function generate_terrain() {
-        const cellSize = new THREE.Vector3(64, 16, 64);
-        const world = new VoxelWorld({
-            cellSize
-        });
-
-        const worldGen = new WorldGeneration({
-            cellSize
-        });
-
-        //#region texture
+    create_texture() {
         const loader = new THREE.TextureLoader();
-        const texture = loader.load('../data/minecraft-texture.png', render);
+        const texture = loader.load('../data/minecraft-texture.png');
         texture.magFilter = THREE.NearestFilter;
         texture.minFilter = THREE.NearestFilter;
 
-        const material = new THREE.MeshLambertMaterial({
+        this.material = new THREE.MeshLambertMaterial({
             map: texture,
             side: THREE.FrontSide,
             alphaTest: 0.1,
             transparent: true,
         });
-        //#endregion texture
+    }
 
-        const neighborOffsets = [
-            [0, 0, 0], // self
-            [-1, 0, 0], // left
-            [1, 0, 0], // right
-            [0, -1, 0], // down
-            [0, 1, 0], // up
-            [0, 0, -1], // back
-            [0, 0, 1], // front
-        ];
-        function updateVoxelGeometry(x, y, z) {
-            const updatedCellIds = {};
-            for (const offset of neighborOffsets) {
-                const ox = x + offset[0];
-                const oy = y + offset[1];
-                const oz = z + offset[2];
-                const cellId = world.computeCellId(ox, oy, oz);
-                if (!updatedCellIds[cellId]) {
-                    updatedCellIds[cellId] = true;
-                    updateCellGeometry(ox, oy, oz);
-                }
+    updateVoxelGeometry(x, y, z) {
+        console.log("start_updateVoxelGeometry");
+        const updatedCellIds = {};
+        for (const offset of neighborOffsets) {
+            const ox = x + offset[0];
+            const oy = y + offset[1];
+            const oz = z + offset[2];
+            const cellId = this.world.computeCellId(ox, oy, oz);
+            if (!updatedCellIds[cellId]) {
+                updatedCellIds[cellId] = true;
+                this.updateCellGeometry(ox, oy, oz);
             }
         }
+        console.log("end_updateVoxelGeometry");
+    }
 
-        const cellIdToMesh = {};
-        function updateCellGeometry(x, y, z) {
-            const cellX = Math.floor(x / cellSize.x);
-            const cellY = Math.floor(y / cellSize.y);
-            const cellZ = Math.floor(z / cellSize.z);
-            const cellId = world.computeCellId(x, y, z);
-            let mesh = cellIdToMesh[cellId];
-            const geometry = mesh ? mesh.geometry : new THREE.BufferGeometry();
+    updateCellGeometry(x, y, z) {
+        const {world} = this;
+        const cellX = Math.floor(x / cellSize.x);
+        const cellY = Math.floor(y / cellSize.y);
+        const cellZ = Math.floor(z / cellSize.z);
+        const cellId = world.computeCellId(x, y, z);
+        let mesh = this.cellIdToMesh[cellId];
+        const geometry = mesh ? mesh.geometry : new THREE.BufferGeometry();
 
-            const { positions, normals, uvs, indices } = world.generateGeometryDataForCell(cellX, cellY, cellZ);
-            const positionNumComponents = 3;
-            geometry.setAttribute('position', new THREE.BufferAttribute(new Float32Array(positions), positionNumComponents));
-            const normalNumComponents = 3;
-            geometry.setAttribute('normal', new THREE.BufferAttribute(new Float32Array(normals), normalNumComponents));
-            const uvNumComponents = 2;
-            geometry.setAttribute('uv', new THREE.BufferAttribute(new Float32Array(uvs), uvNumComponents));
-            geometry.setIndex(indices);
-            geometry.computeBoundingSphere();
+        const { positions, normals, uvs, indices } = world.generateGeometryDataForCell(cellX, cellY, cellZ);
+        const positionNumComponents = 3;
+        geometry.setAttribute('position', new THREE.BufferAttribute(new Float32Array(positions), positionNumComponents));
+        const normalNumComponents = 3;
+        geometry.setAttribute('normal', new THREE.BufferAttribute(new Float32Array(normals), normalNumComponents));
+        const uvNumComponents = 2;
+        geometry.setAttribute('uv', new THREE.BufferAttribute(new Float32Array(uvs), uvNumComponents));
+        geometry.setIndex(indices);
+        geometry.computeBoundingSphere();
 
-            if (!mesh) {
-                mesh = new THREE.Mesh(geometry, material);
-                mesh.name = cellId;
-                cellIdToMesh[cellId] = mesh;
-                scene.add(mesh);
-                mesh.position.set(cellX * cellSize.x, cellY * cellSize.y, cellZ * cellSize.z);
-            }
+        if (!mesh) {
+            mesh = new THREE.Mesh(geometry, this.material);
+            mesh.name = cellId;
+            this.cellIdToMesh[cellId] = mesh;
+            scene.add(mesh);
+            //mesh.position.set(cellX * cellSize.x, cellY * cellSize.y, cellZ * cellSize.z);
         }
+    }
+
+    generate_world()
+    {
+        const {worldGen} = this;
+        const {world} = this;
+        const self = this;
 
         worldGen.generateWorld(0).then(
             function (value) {
@@ -478,13 +446,90 @@ export default function main() {
                         }
                     }
                 }
-                updateVoxelGeometry(0, 0, 0);
+                console.log("end_generate_terrain");
+                self.updateVoxelGeometry(0, 0, 0);
             },
             function (error) { console.log(error); }
         );
-        console.log("end_generate_terrain");
     }
+}
+
+let scene;
+
+export default function main() {
+    const canvas = document.querySelector('#minecraft');
+
+    //#region Camera
+    const fov = 45;
+    const aspect = 2;  // the canvas default
+    const near = 0.1;
+    const far = 1000;
+    const camera = new THREE.PerspectiveCamera(fov, aspect, near, far);
+    camera.position.set(cellSize.x, 128, cellSize.z);
+
+    const controls = new OrbitControls(camera, canvas);
+    controls.target.set(cellSize.x*0.5, 0, cellSize.z*0.5);
+    // controls.enableDamping = true;
+    //#endregion Camera
+
+    const gui = new GUI();
+    gui.close();
+
+    let renderRequested = false;
+    const renderer = new THREE.WebGLRenderer({ canvas });
+
+    //#region Render
+    let sceneRenderer;
+    class SceneRenderer{
+        constructor() {
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x222222);
+            // scene.background = new THREE.Color('lightblue');
+        }
+        
+        resizeRendererToDisplaySize(renderer) {
+            const canvas = renderer.domElement;
+            const pixelRatio = window.devicePixelRatio;
+            const width = canvas.clientWidth * pixelRatio | 0;
+            const height = canvas.clientHeight * pixelRatio | 0;
+            const needResize = canvas.width !== width || canvas.height !== height;
+            if (needResize) {
+                renderer.setSize(width, height, false);
+            }
+            return needResize;
+        }
+    
+        render() {
+            renderRequested = false;
+    
+            if (sceneRenderer.resizeRendererToDisplaySize(renderer)) {
+                const canvas = renderer.domElement;
+                camera.aspect = canvas.clientWidth / canvas.clientHeight;
+                camera.updateProjectionMatrix();
+            }
+            controls.update();
+    
+            renderer.render(scene, camera);
+        }
+    
+        requestRenderIfNotRequested() {
+            if (!renderRequested) {
+                renderRequested = true;
+                requestAnimationFrame(sceneRenderer.render);
+            }
+        }
+    }
+    sceneRenderer = new SceneRenderer(gui);
+
+    controls.addEventListener('change', sceneRenderer.requestRenderIfNotRequested);
+    window.addEventListener('resize', sceneRenderer.requestRenderIfNotRequested);
+    //#endregion Render
+
+    const light = new Light(scene, gui, sceneRenderer.requestRenderIfNotRequested);
+
+    const terrain = new Terrain(gui);
 
     console.log("generate_terrain");
-    generate_terrain();
+    terrain.generate_world();
+    sceneRenderer.render();
 }

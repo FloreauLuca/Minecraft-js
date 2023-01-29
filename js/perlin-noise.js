@@ -18,7 +18,7 @@ export default class PerlinNoise {
     int_noise(x) {
         let n = (x * 8192) ^ x;
         let nn = (n * (n * n * 60493 + 19990303) + 1376312589);
-        let nnn = (nn % 2147483647) / 2147483647;
+        let nnn = 1.0 - (nn % 2147483647) / 1073741824;
         return nnn;
     }
 
@@ -70,9 +70,15 @@ export default class PerlinNoise {
         for (let i = 0; i < this.octaves; ++i) {
             let frequency = Math.pow(2, i);
             let amplitude = Math.pow(this.persistance, i);
-            total += this.interpolate_noise(x * this.frequency * frequency, y * this.frequency * frequency) * amplitude;
+            let interpolatNoise = this.interpolate_noise(x * this.frequency * frequency, y * this.frequency * frequency);
+            total +=  interpolatNoise * amplitude;
         }
         // console.log("perlin_noise",x, y, total);
         return total;
+    }
+
+    perlin_noise_01(x, y)
+    {
+        return Math.min(Math.max(this.perlin_noise(x, y), -0.5), 0.5)+0.5;
     }
 }

@@ -9,7 +9,7 @@ export default class WorldGeneration {
             nodesCount : 4,
             seed : Math.random(),
             persistance : 0.5,
-            octaves : 15,
+            octaves : 5,
             frequency : 0.1
         })
     }
@@ -37,38 +37,51 @@ export default class WorldGeneration {
         this.cell[this.computeBlockIndex(pos.x, pos.y, pos.z)] = type;
     }
 
-    async generateWorld(seed) {
+    generateWorld(seed) {
         console.log("start_generateWorld");
         const { cellSize } = this;
+        let min = 1;
+        let max = 0;
         for (let y = 0; y < cellSize.y; ++y) {
             for (let z = 0; z < cellSize.z; ++z) {
                 for (let x = 0; x < cellSize.x; ++x) {
                     //const height = (Math.sin(x / cellSize.x * Math.PI * 2) + Math.sin(z / cellSize.z * Math.PI * 3)) * (cellSize.y / 6) + (cellSize.y / 2);
-                    const height = (1.0-this.perlin.perlin_noise(x, z)) * (cellSize.y * 0.9) + 5;
+                    //const height = (1.0-this.perlin.perlin_noise(x, z)) * (cellSize.y * 0.9);
+                    let height = (1.0 - this.perlin.perlin_noise_01(x, z)) * (cellSize.y * 0.9);
+                    //console.log(height);
+                    min = Math.min(min, height);
+                    max = Math.max(max, height);
+                    //this.setBlockTypeFromCoord(x, y, z, height * 10);
+
                     if (y <= height) {
-                        if (height < 3)
-                        {
-                            this.setBlockTypeFromCoord(x, y, z, 16+3);
+                        if (y >= Math.floor(height)) {
+                            if (height < 7) {
+                                this.setBlockTypeFromCoord(x, y, z, 16 + 3);
+                            }
+                            else {
+                                this.setBlockTypeFromCoord(x, y, z, 9*16+2);
+                            }
                         }
-                        else if (y >= Math.floor(height))
-                        {
-                            this.setBlockTypeFromCoord(x, y, z, 1);
-                        }
-                        else if (y <= height/2)
-                        {
+                        else if (y <= height / 2) {
                             this.setBlockTypeFromCoord(x, y, z, 2);
                         }
-                        else
-                        {
+                        else {
                             this.setBlockTypeFromCoord(x, y, z, 3);
                         }
                     }
                     else {
-                        this.setBlockTypeFromCoord(x, y, z, 0);
+                        if (y <= 5)
+                        {
+                            this.setBlockTypeFromCoord(x, y, z, 14*16-1);
+                        }
+                        else{
+                            this.setBlockTypeFromCoord(x, y, z, 0);
+                        }
                     }
                 }
             }
         }
+        console.log(min, max);
         console.log("end_generateWorld");
         return Promise.resolve(1);
     }
