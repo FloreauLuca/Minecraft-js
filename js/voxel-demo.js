@@ -28,10 +28,6 @@ class DegRadHelper {
     }
 }
 
-function randInt(min, max) {
-    return Math.floor(Math.random() * (max - min) + min);
-}
-
 class VoxelWorld {
     constructor(options) {
         this.cellSize = options.cellSize;
@@ -477,8 +473,6 @@ export default function main() {
                             const height = (Math.sin(x / cellSize * Math.PI * 2) + Math.sin(z / cellSize * Math.PI * 3)) * (cellSize / 6) + (cellSize / 2);
                             if (y < height) {
                                 world.setVoxel(x, y, z, randInt(1, 17));
-                                // updateVoxelGeometry(cx, 0, cz);  // 0,0,0 will generate
-                                // requestRenderIfNotRequested();
                             }
                         }
                     }
