@@ -34,8 +34,8 @@ function randInt(min, max) {
 }
 
 const tileCount = 16;
-const cellSize = new THREE.Vector3(256, 16, 256);
-const wordlSize = new THREE.Vector3(128, 16, 128);
+const cellSize = new THREE.Vector3(16, 24, 16);
+const cellCount = new THREE.Vector3(16, 1, 16);
 
 class VoxelWorld {
     constructor(options) {
@@ -290,7 +290,7 @@ VoxelWorld.faces = [
     },
 ];
 
-class Light{
+class Light {
     constructor(scene, gui, callback) {
         const lightFolder = gui.addFolder("Light");
         lightFolder.onChange(callback);
@@ -302,7 +302,7 @@ class Light{
             scene.add(light);
             lightFolder.addColor(new ColorGUIHelper(light, 'color'), 'value').name('color');
             lightFolder.add(light, 'intensity', 0, 2, 0.01);
-    
+
         }
         function makeXYZGUI(gui, vector3, name, onChangeFn) {
             const folder = gui.addFolder(name);
@@ -319,10 +319,10 @@ class Light{
             light.target.position.set(25, 15, 15);
             scene.add(light);
             scene.add(light.target);
-    
+
             const helper = new THREE.DirectionalLightHelper(light);
             //scene.add(helper);
-    
+
             lightFolder.addColor(new ColorGUIHelper(light, 'color'), 'value').name('color');
             lightFolder.add(light, 'intensity', 0, 2, 0.01);
             function updateLight() {
@@ -346,35 +346,35 @@ const neighborOffsets = [
     [0, 0, -1], // back
     [0, 0, 1], // front
 ];
-class Terrain{
+class Terrain {
     constructor(gui) {
         this.world = new VoxelWorld({
             cellSize
         });
-    
+
         this.worldGen = new WorldGeneration({
-            cellSize
+            cellSize: cellSize,
+            seed: Math.random()
         });
-        
+
         this.cellIdToMesh = {};
 
         this.create_gui(gui);
         this.create_texture();
     }
 
-    create_gui(gui)
-    {
-        const {worldGen} = this;
-        const folder = gui.addFolder("World Gen");
-        folder.add(worldGen.cellSize, 'x', 0, 2048).onFinishChange(this.generate_world);
-        folder.add(worldGen.cellSize, 'y', 0, 128).onFinishChange(this.generate_world);
-        folder.add(worldGen.cellSize, 'z', 0, 2048).onFinishChange(this.generate_world);
-        folder.open();
+    create_gui(gui) {
+        const { worldGen } = this;
+        // const folder = gui.addFolder("World Gen");
+        // folder.add(worldGen.cellSize, 'x', 0, 2048).onFinishChange(this.generate_world);
+        // folder.add(worldGen.cellSize, 'y', 0, 128).onFinishChange(this.generate_world);
+        // folder.add(worldGen.cellSize, 'z', 0, 2048).onFinishChange(this.generate_world);
+        // folder.open();
     }
 
     create_texture() {
         const loader = new THREE.TextureLoader();
-        const texture = loader.load('./data/minecraft-texture.png', sceneRenderer.render);
+        const texture = loader.load('./data/minecraft-texture.png', this.generate_world.bind(this));
         texture.magFilter = THREE.NearestFilter;
         texture.minFilter = THREE.NearestFilter;
 
@@ -387,7 +387,7 @@ class Terrain{
     }
 
     updateVoxelGeometry(x, y, z) {
-        console.log("start_updateVoxelGeometry");
+        // console.log("start_updateVoxelGeometry");
         const updatedCellIds = {};
         for (const offset of neighborOffsets) {
             const ox = x + offset[0];
@@ -399,11 +399,11 @@ class Terrain{
                 this.updateCellGeometry(ox, oy, oz);
             }
         }
-        console.log("end_updateVoxelGeometry");
+        // console.log("end_updateVoxelGeometry");
     }
 
     updateCellGeometry(x, y, z) {
-        const {world} = this;
+        const { world } = this;
         const cellX = Math.floor(x / cellSize.x);
         const cellY = Math.floor(y / cellSize.y);
         const cellZ = Math.floor(z / cellSize.z);
@@ -426,32 +426,46 @@ class Terrain{
             mesh.name = cellId;
             this.cellIdToMesh[cellId] = mesh;
             scene.add(mesh);
-            //mesh.position.set(cellX * cellSize.x, cellY * cellSize.y, cellZ * cellSize.z);
+            mesh.position.set(cellX * cellSize.x, cellY * cellSize.y, cellZ * cellSize.z);
         }
     }
 
-    generate_world()
-    {
-        const {worldGen} = this;
-        const {world} = this;
+    async generate_world() {
+        console.log("start_generate_world");
+        const { worldGen } = this;
+        const { world } = this;
         const self = this;
 
-        worldGen.generateWorld(0).then(
-            function (value) {
-                for (let y = 0; y < cellSize.y; ++y) {
-                    for (let z = 0; z < cellSize.z; ++z) {
-                        for (let x = 0; x < cellSize.x; ++x) {
-                            let type = worldGen.getBlockTypeFromCoord(x, y, z);
-                            //console.log(type);
-                            world.setVoxel(x, y, z, type);
-                        }
-                    }
+        const loadingElem = document.querySelector('#loading');
+        loadingElem.style.display = 'flex';
+        const progressBarElem = loadingElem.querySelector('.progressbar');
+        for (let cy = 0; cy < cellCount.y; cy++) {
+            for (let cz = 0; cz < cellCount.z; cz++) {
+                for (let cx = 0; cx < cellCount.x; cx++) {
+                    setTimeout(function () {
+                        let cell = worldGen.generateWorld(cx, cy, cz).then(
+                            function (value) {
+                                for (let y = 0; y < cellSize.y; ++y) {
+                                    for (let z = 0; z < cellSize.z; ++z) {
+                                        for (let x = 0; x < cellSize.x; ++x) {
+                                            let type = worldGen.getBlockTypeFromCell(value, x, y, z);
+                                            world.setVoxel(x + cx * cellSize.x, y + cy * cellSize.y, z + cz * cellSize.z, type);
+                                        }
+                                    }
+                                }
+                                self.updateVoxelGeometry(cx * cellSize.x, cy * cellSize.y, cz * cellSize.z);
+                                let cellProgress = cy * cellCount.x * cellCount.z + cz * cellCount.x + cx;
+                                cellProgress /= (cellCount.x * cellCount.z * cellCount.y);
+                                progressBarElem.style.transform = `scaleX(${cellProgress})`;
+                                if (cellProgress > 0.95) {
+                                    loadingElem.style.display = 'none';
+                                }
+                            });
+                        sceneRenderer.render();
+                    }, 100);
                 }
-                console.log("end_generate_terrain");
-                self.updateVoxelGeometry(0, 0, 0);
-            },
-            function (error) { console.log(error); }
-        );
+            }
+        }
     }
 }
 
@@ -466,10 +480,10 @@ export default function main() {
     const near = 0.1;
     const far = 1000;
     const camera = new THREE.PerspectiveCamera(fov, aspect, near, far);
-    camera.position.set(cellSize.x, 128, cellSize.z);
+    camera.position.set(0, 128, 0);
 
     const controls = new OrbitControls(camera, canvas);
-    controls.target.set(cellSize.x*0.5, 0, cellSize.z*0.5);
+    controls.target.set(cellSize.x * cellCount.x * 0.5, 0, cellSize.z * cellCount.z * 0.5);
     // controls.enableDamping = true;
     //#endregion Camera
 
@@ -480,13 +494,13 @@ export default function main() {
     const renderer = new THREE.WebGLRenderer({ canvas });
 
     //#region Render
-    class SceneRenderer{
+    class SceneRenderer {
         constructor() {
             scene = new THREE.Scene();
             scene.background = new THREE.Color(0x222222);
             // scene.background = new THREE.Color('lightblue');
         }
-        
+
         resizeRendererToDisplaySize(renderer) {
             const canvas = renderer.domElement;
             const pixelRatio = window.devicePixelRatio;
@@ -498,20 +512,19 @@ export default function main() {
             }
             return needResize;
         }
-    
+
         render() {
             renderRequested = false;
-    
+
             if (sceneRenderer.resizeRendererToDisplaySize(renderer)) {
                 const canvas = renderer.domElement;
                 camera.aspect = canvas.clientWidth / canvas.clientHeight;
                 camera.updateProjectionMatrix();
             }
             controls.update();
-    
             renderer.render(scene, camera);
         }
-    
+
         requestRenderIfNotRequested() {
             if (!renderRequested) {
                 renderRequested = true;
@@ -530,6 +543,5 @@ export default function main() {
     const terrain = new Terrain(gui);
 
     console.log("generate_terrain");
-    terrain.generate_world();
-    sceneRenderer.render();
+    //terrain.generate_world();
 }
