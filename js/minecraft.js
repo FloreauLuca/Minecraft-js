@@ -35,7 +35,7 @@ function randInt(min, max) {
 
 const tileCount = 16;
 const cellSize = new THREE.Vector3(16, 24, 16);
-const cellCount = new THREE.Vector3(16, 1, 16);
+let cellCount = new THREE.Vector3(16, 1, 16);
 
 class VoxelWorld {
     constructor(options) {
@@ -363,13 +363,27 @@ class Terrain {
         this.create_texture();
     }
 
+    regenerate_world()
+    {
+        this.world = new VoxelWorld({
+            cellSize
+        });
+
+        this.worldGen = new WorldGeneration({
+            cellSize: cellSize,
+            seed: Math.random()
+        });
+        this.generate_world();
+    }
+
     create_gui(gui) {
         const { worldGen } = this;
-        // const folder = gui.addFolder("World Gen");
-        // folder.add(worldGen.cellSize, 'x', 0, 2048).onFinishChange(this.generate_world);
-        // folder.add(worldGen.cellSize, 'y', 0, 128).onFinishChange(this.generate_world);
-        // folder.add(worldGen.cellSize, 'z', 0, 2048).onFinishChange(this.generate_world);
-        // folder.open();
+        const folder = gui.addFolder("World Gen");
+        folder.add(cellCount, 'x', 1, 64);
+        folder.add(cellCount, 'y', 1, 64);
+        folder.add(cellCount, 'z', 1, 64);
+        folder.add(this, 'regenerate_world');
+        folder.open();
     }
 
     create_texture() {
@@ -478,7 +492,7 @@ export default function main() {
     const fov = 45;
     const aspect = 2;  // the canvas default
     const near = 0.1;
-    const far = 1000;
+    const far = 100000;
     const camera = new THREE.PerspectiveCamera(fov, aspect, near, far);
     camera.position.set(0, 128, 0);
 
