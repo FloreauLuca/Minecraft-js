@@ -1,7 +1,9 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { GUI } from 'three/addons/libs/lil-gui.module.min.js';
-import WorldGeneration from './world-generation.js';
+import WorldGeneration from './world-generation.js';			
+import Stats from 'three/addons/libs/stats.module.js';
+import { FirstPersonControls } from 'three/addons/controls/FirstPersonControls.js';
 
 class ColorGUIHelper {
     constructor(object, prop) {
@@ -36,6 +38,8 @@ function randInt(min, max) {
 const tileCount = 16;
 const cellSize = new THREE.Vector3(16, 24, 16);
 let cellCount = new THREE.Vector3(16, 1, 16);
+
+let stats;
 
 class VoxelWorld {
     constructor(options) {
@@ -79,7 +83,7 @@ class VoxelWorld {
         let cell = this.cells[cellId];
         if (!cell) {
             const { cellSize } = this;
-            cell = new Uint8Array(cellSize.x * cellSize.y * cellSize.z);
+            cell = Array.apply({type:0, color:new THREE.Vector3()}, Array(cellSize.x * cellSize.y * cellSize.z));
             this.cells[cellId] = cell;
         }
         return cell;
@@ -100,6 +104,7 @@ class VoxelWorld {
         const normals = [];
         const indices = [];
         const uvs = [];
+        const colors = [];
         const startX = cellX * cellSize.x;
         const startY = cellY * cellSize.y;
         const startZ = cellZ * cellSize.z;
@@ -111,15 +116,15 @@ class VoxelWorld {
                 for (let x = 0; x < cellSize.x; ++x) {
                     const voxelX = startX + x;
                     const voxel = this.getVoxel(voxelX, voxelY, voxelZ);
-                    if (voxel) {
-                        const uvVoxelX = (voxel - 1) % tileCount;  // voxel 0 is sky so for UVs we start at 0
-                        const uvVoxelY = Math.floor((voxel - 1) / tileCount);
+                    if (voxel.type) {
+                        const uvVoxelX = voxel.type % tileCount;  // voxel 0 is sky so for UVs we start at 0
+                        const uvVoxelY = Math.floor(voxel.type / tileCount);
                         for (const { dir, corners, uvRow } of VoxelWorld.faces) {
                             const neighbor = this.getVoxel(
                                 voxelX + dir[0],
                                 voxelY + dir[1],
                                 voxelZ + dir[2]);
-                            if (!neighbor) {
+                            if (!neighbor.type) {
                                 // this voxel has no neighbor in this direction so we need a face.
                                 const ndx = positions.length / 3;
                                 for (const { pos, uv } of corners) {
@@ -128,6 +133,7 @@ class VoxelWorld {
                                     uvs.push(
                                         (uvVoxelX + uv[0]) / tileCount,
                                         1 - (uvVoxelY + uv[1]) / tileCount);
+                                    colors.push(voxel.color.x, voxel.color.y, voxel.color.z);
                                 }
                                 indices.push(
                                     ndx, ndx + 1, ndx + 2,
@@ -144,6 +150,7 @@ class VoxelWorld {
             normals,
             uvs,
             indices,
+            colors
         };
     }
 
@@ -186,7 +193,7 @@ class VoxelWorld {
         // main loop along raycast vector
         while (t <= len) {
             const voxel = this.getVoxel(ix, iy, iz);
-            if (voxel) {
+            if (voxel.type) {
                 return {
                     position: [
                         start.x + t * dx,
@@ -397,6 +404,7 @@ class Terrain {
             side: THREE.FrontSide,
             alphaTest: 0.1,
             transparent: true,
+            vertexColors: true
         });
     }
 
@@ -425,13 +433,15 @@ class Terrain {
         let mesh = this.cellIdToMesh[cellId];
         const geometry = mesh ? mesh.geometry : new THREE.BufferGeometry();
 
-        const { positions, normals, uvs, indices } = world.generateGeometryDataForCell(cellX, cellY, cellZ);
+        const { positions, normals, uvs, indices, colors } = world.generateGeometryDataForCell(cellX, cellY, cellZ);
         const positionNumComponents = 3;
         geometry.setAttribute('position', new THREE.BufferAttribute(new Float32Array(positions), positionNumComponents));
         const normalNumComponents = 3;
         geometry.setAttribute('normal', new THREE.BufferAttribute(new Float32Array(normals), normalNumComponents));
         const uvNumComponents = 2;
         geometry.setAttribute('uv', new THREE.BufferAttribute(new Float32Array(uvs), uvNumComponents));
+        const colorNumComponents = 3;
+        geometry.setAttribute('color', new THREE.BufferAttribute(new Float32Array(colors), colorNumComponents));
         geometry.setIndex(indices);
         geometry.computeBoundingSphere();
 
@@ -462,8 +472,8 @@ class Terrain {
                                 for (let y = 0; y < cellSize.y; ++y) {
                                     for (let z = 0; z < cellSize.z; ++z) {
                                         for (let x = 0; x < cellSize.x; ++x) {
-                                            let type = worldGen.getBlockTypeFromCell(value, x, y, z);
-                                            world.setVoxel(x + cx * cellSize.x, y + cy * cellSize.y, z + cz * cellSize.z, type);
+                                            const block = worldGen.getBlockTypeFromCell(value, x, y, z);
+                                            world.setVoxel(x + cx * cellSize.x, y + cy * cellSize.y, z + cz * cellSize.z, block);
                                         }
                                     }
                                 }
@@ -487,7 +497,9 @@ let scene;
 
 export default function main() {
     const canvas = document.querySelector('#minecraft');
-
+    const container = document.querySelector('#container');
+    stats = new Stats();
+    container.appendChild( stats.dom );
     //#region Camera
     const fov = 45;
     const aspect = 2;  // the canvas default
@@ -550,7 +562,13 @@ export default function main() {
 
     controls.addEventListener('change', sceneRenderer.requestRenderIfNotRequested);
     window.addEventListener('resize', sceneRenderer.requestRenderIfNotRequested);
-    //#endregion Render
+
+    function update()
+    {
+        stats.update();
+        requestAnimationFrame(update);
+    }
+    update();
 
     const light = new Light(scene, gui, sceneRenderer.requestRenderIfNotRequested);
 

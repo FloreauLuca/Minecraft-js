@@ -1,3 +1,5 @@
+import Hash from './hash.js';
+
 const X_NOISE_GEN = 31;
 const Y_NOISE_GEN = 211;
 const SEED_NOISE_GEN = 1009;
