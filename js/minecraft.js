@@ -36,8 +36,11 @@ function randInt(min, max) {
 }
 
 const tileCount = 16;
-const cellSize = new THREE.Vector3(16, 24, 16);
+const cellSize = new THREE.Vector3(32, 24, 32);
 let cellCount = new THREE.Vector3(16, 1, 16);
+const mapSize = new THREE.Vector3(cellSize.x * cellCount.x, cellSize.y * cellCount.y, cellSize.z * cellCount.z);
+// const seed = Math.random();
+const seed = 0;
 
 let stats;
 
@@ -343,6 +346,8 @@ class Light {
 }
 
 let sceneRenderer;
+
+let scene;
 //#region UpdateWorld
 const neighborOffsets = [
     [0, 0, 0], // self
@@ -361,10 +366,14 @@ class Terrain {
 
         this.worldGen = new WorldGeneration({
             cellSize: cellSize,
-            seed: Math.random()
+            seed: seed,
+            mapSize : mapSize
         });
 
         this.cellIdToMesh = {};
+        this.worldGen.draw_debug();
+        scene.add(this.worldGen.debug_plane);
+        this.worldGen.create_gui(gui, sceneRenderer);
 
         this.create_gui(gui);
         this.create_texture();
@@ -378,7 +387,8 @@ class Terrain {
 
         this.worldGen = new WorldGeneration({
             cellSize: cellSize,
-            seed: Math.random()
+            seed: seed,
+            mapSize : mapSize
         });
         this.generate_world();
     }
@@ -481,7 +491,8 @@ class Terrain {
                                 let cellProgress = cy * cellCount.x * cellCount.z + cz * cellCount.x + cx;
                                 cellProgress /= (cellCount.x * cellCount.z * cellCount.y);
                                 progressBarElem.style.transform = `scaleX(${cellProgress})`;
-                                if (cellProgress > 0.95) {
+                                //if (cellProgress >= 1.0- (1 / (cellCount.x * cellCount.z * cellCount.y))) 
+                                {
                                     loadingElem.style.display = 'none';
                                 }
                             });
@@ -493,11 +504,10 @@ class Terrain {
     }
 }
 
-let scene;
-
 export default function main() {
     const canvas = document.querySelector('#minecraft');
     const container = document.querySelector('#container');
+    const renderer = new THREE.WebGLRenderer({ canvas });
     stats = new Stats();
     container.appendChild( stats.dom );
     //#region Camera
@@ -510,19 +520,23 @@ export default function main() {
 
     const controls = new OrbitControls(camera, canvas);
     controls.target.set(cellSize.x * cellCount.x * 0.5, 0, cellSize.z * cellCount.z * 0.5);
+    // controls.target.set(0, 0, 0);
     // controls.enableDamping = true;
+    // const controls = new FirstPersonControls( camera, renderer.domElement );
+    // controls.movementSpeed = 150;
+    // controls.lookSpeed = 0.1;
     //#endregion Camera
 
     const gui = new GUI();
     gui.close();
 
     let renderRequested = false;
-    const renderer = new THREE.WebGLRenderer({ canvas });
 
     //#region Render
     class SceneRenderer {
         constructor() {
             scene = new THREE.Scene();
+            console.log(scene);
             scene.background = new THREE.Color(0x222222);
             // scene.background = new THREE.Color('lightblue');
         }
@@ -573,7 +587,6 @@ export default function main() {
     const light = new Light(scene, gui, sceneRenderer.requestRenderIfNotRequested);
 
     const terrain = new Terrain(gui);
-
     console.log("generate_terrain");
     //terrain.generate_world();
 }

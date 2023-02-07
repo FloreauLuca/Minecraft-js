@@ -12,6 +12,7 @@ export default class WorldGeneration {
             octaves: 4,
             frequency: 0.1
         })
+        this.mapSize = options.mapSize;
     }
 
     computeBlockIndex(x, y, z) {
@@ -54,7 +55,7 @@ export default class WorldGeneration {
                 let type = 0;
                 let color = new THREE.Vector3(1, 1, 1);
 
-                const waterLevel = cellSize.y * 0.5;
+                const waterLevel = cellSize.y * 0.4;
                 const snowLevel = cellSize.y * 0.75;
 
                 for (let y = 0; y < cellSize.y; ++y) {
@@ -101,7 +102,12 @@ export default class WorldGeneration {
                         }
                     }
 
-                    //type = 16*3+intNoise*15;
+                    // if (type != 0)
+                    // {
+                    //     type = 16 * 3 + 0 * 15;
+                    // }
+
+                    // color = new THREE.Vector3(noise, noise, noise);
 
                     let worldPosY = y + cy * cellSize.y;
                     this.setBlockTypeFromCell(cell, x, y, z, { type: type, color: color });
@@ -111,5 +117,65 @@ export default class WorldGeneration {
         //console.log(min, max);
         //console.log("end_generateWorld");
         return Promise.resolve(cell);
+    }
+
+    create_gui(gui, sceneRenderer)
+    {
+        const { perlin } = this;
+        const { debug_plane } = this;
+        const folder = gui.addFolder("WorldGen");
+        folder.add(perlin, 'seed', 1, 64);
+        folder.add(perlin, 'persistance', 0, 1);
+        folder.add(perlin, 'octaves', 1, 16);
+        folder.add(perlin, 'frequency', 0, 1);
+        const debugFolder = folder.addFolder("DebugPanel");
+        debugFolder.add(debug_plane.material, 'opacity', 0, 1);
+        folder.add(this, 'draw_debug');
+        folder.add(sceneRenderer, 'requestRenderIfNotRequested');
+        folder.open();
+        return folder;
+    }
+
+    draw_debug()
+    {
+        const width = this.mapSize.x;
+        const height = this.mapSize.z;
+        
+        const size = width * height;
+        const data = new Uint8Array( 4 * size );
+        
+        for (let z = 0; z < height; ++z) {
+            for (let x = 0; x < width; ++x) {
+
+                const stride = (x + width * z) * 4;
+                let noise = this.perlin.perlin_noise_01(x, z);
+                
+                const r = Math.floor(noise * 255);
+                const g = Math.floor(noise * 255);
+                const b = Math.floor(noise * 255);
+                data[stride] = r;
+                data[stride + 1] = g;
+                data[stride + 2] = b;
+                data[stride + 3] = 255;
+            }
+        }
+        
+        // used the buffer to create a DataTexture
+        
+        const texture = new THREE.DataTexture( data, width, height );
+        texture.needsUpdate = true;
+        const geometry = new THREE.PlaneGeometry( width, height );
+        const material = new THREE.MeshBasicMaterial( {map : texture, transparent : true, alphaTest : 0.01, side : THREE.DoubleSide} );
+        // const material = new THREE.MeshBasicMaterial( { color: Math.random() * 0xffffff });
+        this.debug_plane = this.debug_plane ? this.debug_plane : new THREE.Mesh();
+        this.debug_plane.geometry = geometry;
+        this.debug_plane.material = material;
+        this.debug_plane.position.set(width / 2, 100, height / 2);
+        this.debug_plane.rotation.set(Math.PI / 2, 0, 0);
+        this.debug_plane.material.opacity = 0;
+
+        // const geometry = new THREE.PlaneGeometry(1, 1);
+        // const material = new THREE.MeshBasicMaterial({ color: 0xffff00, side: THREE.DoubleSide });
+        // const plane = new THREE.Mesh(geometry, material);
     }
 }
