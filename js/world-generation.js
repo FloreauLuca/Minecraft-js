@@ -14,7 +14,7 @@ export default class WorldGeneration {
         })
         this.mapSize = options.mapSize;
         this.debugParameter = {
-            type:'Height'
+            type:'Biome'
         }
     }
 
@@ -43,10 +43,43 @@ export default class WorldGeneration {
         return height;
     }
 
-    calculate_biome(worldPos)
-    {
-        let intNoise = this.perlin.perlin_noise_01(worldPos.x / 5, worldPos.z / 5);
-        return intNoise;
+    calculate_biome(worldPos) {
+        const { cellSize } = this;
+        const cellPos = new THREE.Vector3(
+            Math.floor(worldPos.x / cellSize.x),
+            Math.floor(worldPos.y / cellSize.y),
+            Math.floor(worldPos.z / cellSize.z));
+        let minDist = cellSize.x * cellSize.z;
+        let selectedBiome = 0;
+        const frequency = 1;
+        for (let cz = cellPos.z - 1; cz <= cellPos.z + 1; cz++) {
+            for (let cx = cellPos.x - 1; cx <= cellPos.x + 1; cx++) {
+                let noise = this.perlin.int_noise_2d(cx * frequency, cz * frequency) * 0.5;
+                noise = this.perlin.clamp_01(noise);
+                let cellIndex = Math.floor(noise * (cellSize.x * cellSize.y * cellSize.z));
+                const cellIndexPos = new THREE.Vector3(
+                    cellIndex % cellSize.x,
+                    Math.floor(cellIndex / (cellSize.z * cellSize.y)),
+                    Math.floor(cellIndex / cellSize.z) % cellSize.y
+                );
+                const worldIndexPos = new THREE.Vector3(
+                    cellIndexPos.x + (cx * cellSize.x),
+                    0,
+                    cellIndexPos.z + (cz * cellSize.z)
+                );
+                if (worldPos.x == worldIndexPos.x && worldPos.z == worldIndexPos.z)
+                {
+                    return 1;
+                }
+                const dist = worldPos.distanceTo(worldIndexPos);
+                if (dist < minDist)
+                {
+                    minDist = dist;
+                    selectedBiome = noise;
+                }
+            }
+        }
+        return selectedBiome;
     }
 
     async generateWorld(cx, cy, cz) {
@@ -162,7 +195,7 @@ export default class WorldGeneration {
         {
             this.debugPlane = new THREE.Mesh();
             this.debugPlane.geometry = new THREE.PlaneGeometry(width, height);
-            this.debugPlane.material = new THREE.MeshBasicMaterial( {transparent : true, alphaTest : 0.01, side : THREE.DoubleSide, opacity : 0} );
+            this.debugPlane.material = new THREE.MeshBasicMaterial( {transparent : true, alphaTest : 0.01, side : THREE.DoubleSide, opacity : 0.9} );
             this.debugPlane.position.set(width / 2, 50, height / 2);
             this.debugPlane.rotation.set(Math.PI / 2, 0, 0);
         }
@@ -171,18 +204,24 @@ export default class WorldGeneration {
         for (let z = 0; z < height; ++z) {
             for (let x = 0; x < width; ++x) {
                 let worldPos = new THREE.Vector3(x, 0, z);
-                let data = 0;
+                let color = {r:0, g:0, b:0};
                 if (this.debugParameter.type == 'Height') {
-                    data = this.calculate_height(worldPos);
+                    let noise = this.calculate_height(worldPos);
+                    color.r = noise;
+                    color.g = noise;
+                    color.b = noise;
                 }
                 else if (this.debugParameter.type == 'Biome') {
-                    data = this.calculate_biome(worldPos);
+                    let noise = this.calculate_biome(worldPos);
+                    color.r = noise;
+                    color.g = noise;
+                    color.b = 1;
                 }
 
                 const stride = (x + width * z) * 4;
-                const r = Math.floor(data * 255);
-                const g = Math.floor(data * 255);
-                const b = Math.floor(data * 255);
+                const r = Math.floor(color.r * 255);
+                const g = Math.floor(color.g * 255);
+                const b = Math.floor(color.b * 255);
                 datas[stride] = r;
                 datas[stride + 1] = g;
                 datas[stride + 2] = b;

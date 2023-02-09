@@ -81,6 +81,11 @@ export default class PerlinNoise {
 
     perlin_noise_01(x, y)
     {
-        return Math.min(Math.max(this.perlin_noise(x, y), -0.5), 0.5)+0.5;
+        return this.clamp_01(this.perlin_noise(x, y));
+    }
+
+    clamp_01(noise)
+    {
+        return Math.min(Math.max(noise, -0.5), 0.5)+0.5;
     }
 }
