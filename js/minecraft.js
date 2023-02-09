@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { GUI } from 'three/addons/libs/lil-gui.module.min.js';
-import WorldGeneration from './world-generation.js';			
+import WorldGeneration from './world-generation.js';
 import Stats from 'three/addons/libs/stats.module.js';
 import { FirstPersonControls } from 'three/addons/controls/FirstPersonControls.js';
 
@@ -36,11 +36,11 @@ function randInt(min, max) {
 }
 
 const tileCount = 16;
-const cellSize = new THREE.Vector3(32, 24, 32);
+const cellSize = new THREE.Vector3(8, 24, 8);
 let cellCount = new THREE.Vector3(16, 1, 16);
 const mapSize = new THREE.Vector3(cellSize.x * cellCount.x, cellSize.y * cellCount.y, cellSize.z * cellCount.z);
-// const seed = Math.random();
-const seed = 0;
+const seed = Math.random();
+// const seed = 0;
 
 let stats;
 
@@ -86,7 +86,7 @@ class VoxelWorld {
         let cell = this.cells[cellId];
         if (!cell) {
             const { cellSize } = this;
-            cell = Array.apply({type:0, color:new THREE.Vector3()}, Array(cellSize.x * cellSize.y * cellSize.z));
+            cell = Array.apply({ type: 0, color: new THREE.Vector3() }, Array(cellSize.x * cellSize.y * cellSize.z));
             this.cells[cellId] = cell;
         }
         return cell;
@@ -119,31 +119,39 @@ class VoxelWorld {
                 for (let x = 0; x < cellSize.x; ++x) {
                     const voxelX = startX + x;
                     const voxel = this.getVoxel(voxelX, voxelY, voxelZ);
-                    if (voxel.type) {
-                        const uvVoxelX = voxel.type % tileCount;  // voxel 0 is sky so for UVs we start at 0
-                        const uvVoxelY = Math.floor(voxel.type / tileCount);
-                        for (const { dir, corners, uvRow } of VoxelWorld.faces) {
-                            const neighbor = this.getVoxel(
-                                voxelX + dir[0],
-                                voxelY + dir[1],
-                                voxelZ + dir[2]);
-                            if (!neighbor.type) {
-                                // this voxel has no neighbor in this direction so we need a face.
-                                const ndx = positions.length / 3;
-                                for (const { pos, uv } of corners) {
-                                    positions.push(pos[0] + x, pos[1] + y, pos[2] + z);
-                                    normals.push(...dir);
-                                    uvs.push(
-                                        (uvVoxelX + uv[0]) / tileCount,
-                                        1 - (uvVoxelY + uv[1]) / tileCount);
-                                    colors.push(voxel.color.x, voxel.color.y, voxel.color.z);
-                                }
-                                indices.push(
-                                    ndx, ndx + 1, ndx + 2,
-                                    ndx + 2, ndx + 1, ndx + 3,
-                                );
+                    if (voxel == undefined || voxel == 0)
+                        continue;
+                    if (voxel.type == 0)
+                        continue;
+
+                    const uvVoxelX = voxel.type % tileCount;  // voxel 0 is sky so for UVs we start at 0
+                    const uvVoxelY = Math.floor(voxel.type / tileCount);
+                    for (const { dir, corners, uvRow } of VoxelWorld.faces) {
+                        const neighbor = this.getVoxel(
+                            voxelX + dir[0],
+                            voxelY + dir[1],
+                            voxelZ + dir[2]);
+
+                        if (neighbor != undefined && neighbor != 0) {
+                            if (neighbor.type != 0 ) {
+                                continue;
                             }
                         }
+
+                        // this voxel has no neighbor in this direction so we need a face.
+                        const ndx = positions.length / 3;
+                        for (const { pos, uv } of corners) {
+                            positions.push(pos[0] + x, pos[1] + y, pos[2] + z);
+                            normals.push(...dir);
+                            uvs.push(
+                                (uvVoxelX + uv[0]) / tileCount,
+                                1 - (uvVoxelY + uv[1]) / tileCount);
+                            colors.push(voxel.color.x, voxel.color.y, voxel.color.z);
+                        }
+                        indices.push(
+                            ndx, ndx + 1, ndx + 2,
+                            ndx + 2, ndx + 1, ndx + 3,
+                        );
                     }
                 }
             }
@@ -367,20 +375,19 @@ class Terrain {
         this.worldGen = new WorldGeneration({
             cellSize: cellSize,
             seed: seed,
-            mapSize : mapSize
+            mapSize: mapSize
         });
 
         this.cellIdToMesh = {};
         this.worldGen.draw_debug();
-        scene.add(this.worldGen.debug_plane);
+        scene.add(this.worldGen.debugPlane);
         this.worldGen.create_gui(gui, sceneRenderer);
 
         this.create_gui(gui);
         this.create_texture();
     }
 
-    regenerate_world()
-    {
+    regenerate_world() {
         this.world = new VoxelWorld({
             cellSize
         });
@@ -388,7 +395,7 @@ class Terrain {
         this.worldGen = new WorldGeneration({
             cellSize: cellSize,
             seed: seed,
-            mapSize : mapSize
+            mapSize: mapSize
         });
         this.generate_world();
     }
@@ -509,7 +516,7 @@ export default function main() {
     const container = document.querySelector('#container');
     const renderer = new THREE.WebGLRenderer({ canvas });
     stats = new Stats();
-    container.appendChild( stats.dom );
+    container.appendChild(stats.dom);
     //#region Camera
     const fov = 45;
     const aspect = 2;  // the canvas default
@@ -577,8 +584,7 @@ export default function main() {
     controls.addEventListener('change', sceneRenderer.requestRenderIfNotRequested);
     window.addEventListener('resize', sceneRenderer.requestRenderIfNotRequested);
 
-    function update()
-    {
+    function update() {
         stats.update();
         requestAnimationFrame(update);
     }
