@@ -67,10 +67,10 @@ export default class WorldGeneration {
                     0,
                     cellIndexPos.z + (cz * cellSize.z)
                 );
-                if (worldPos.x == worldIndexPos.x && worldPos.z == worldIndexPos.z)
-                {
-                    return 1;
-                }
+                // if (worldPos.x == worldIndexPos.x && worldPos.z == worldIndexPos.z)
+                // {
+                //     return 1;
+                // }
                 const dist = worldPos.distanceTo(worldIndexPos);
                 if (dist < minDist)
                 {
@@ -195,7 +195,7 @@ export default class WorldGeneration {
         {
             this.debugPlane = new THREE.Mesh();
             this.debugPlane.geometry = new THREE.PlaneGeometry(width, height);
-            this.debugPlane.material = new THREE.MeshBasicMaterial( {transparent : true, alphaTest : 0.01, side : THREE.DoubleSide, opacity : 0.9} );
+            this.debugPlane.material = new THREE.MeshBasicMaterial( {transparent : true, alphaTest : 0.01, side : THREE.DoubleSide, opacity : 0} );
             this.debugPlane.position.set(width / 2, 50, height / 2);
             this.debugPlane.rotation.set(Math.PI / 2, 0, 0);
         }
