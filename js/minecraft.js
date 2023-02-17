@@ -37,7 +37,7 @@ function randInt(min, max) {
 
 const tileCount = 16;
 const cellSize = new THREE.Vector3(32, 32, 32);
-let cellCount = new THREE.Vector3(1, 1, 1);
+let cellCount = new THREE.Vector3(16, 1, 16);
 const mapSize = new THREE.Vector3(cellSize.x * cellCount.x, cellSize.y * cellCount.y, cellSize.z * cellCount.z);
 const seed = Math.random();
 // const seed = 0;
