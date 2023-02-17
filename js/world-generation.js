@@ -3,14 +3,7 @@ import PerlinNoise from './perlin-noise.js';
 import Hash from './hash.js';
 import * as Color from './utility/color-utility.js';
 import * as MathUtils from './utility/math-utility.js';
-
-function displayVector(gui, vec, name, min, max)
-{
-    const folder = gui.addFolder(name);
-    folder.add(vec, 'x', min, max);
-    folder.add(vec, 'y', min, max);
-    folder.add(vec, 'z', min, max);
-}
+import * as GUIHelper from './utility/gui-helper.js';
 
 export default class WorldGeneration {
     constructor(options) {
@@ -92,12 +85,10 @@ export default class WorldGeneration {
         biomes.sort((a, b) => {
             if (a === biomes[0])
             {
-                //console.log("0-1", a.dist, b.dist);
                 return -1;
             }
             if (b === biomes[0])
             {
-                //console.log("0 1", a.dist, b.dist);
                 return 1;
             }
             
@@ -107,12 +98,12 @@ export default class WorldGeneration {
             const dotA = vecCenter.dot(vecA);
             const dotB = vecCenter.dot(vecB);
 
-            if (worldPos.x === 20 && worldPos.z === 20)
-            {   console.log(a.center, b.center, worldPos2D, biomes[0].center);
-                console.log(a.dist - b.dist,dotA,dotB, a.dist, b.dist);
-                console.log(biomes[0].center, worldPos2D, vecCenter, vecA, dotA,vecB,  dotB);
-                console.log(dotA >= 0, dotB >= 0, dotA >= 0 - dotB >= 0);
-            }
+            // if (worldPos.x === 20 && worldPos.z === 20)
+            // {   console.log(a.center, b.center, worldPos2D, biomes[0].center);
+            //     console.log(a.dist - b.dist,dotA,dotB, a.dist, b.dist);
+            //     console.log(biomes[0].center, worldPos2D, vecCenter, vecA, dotA,vecB,  dotB);
+            //     console.log(dotA >= 0, dotB >= 0, dotA >= 0 - dotB >= 0);
+            // }
             if (dotA >= 0 === dotB >= 0)
             {
                 return a.dist - b.dist;
@@ -126,10 +117,10 @@ export default class WorldGeneration {
                 return 1;
             } 
         });
-        if (worldPos.x === 20 && worldPos.z === 20)
-        {
-            console.log(biomes);
-        }
+        // if (worldPos.x === 20 && worldPos.z === 20)
+        // {
+        //     console.log(biomes);
+        // }
         //biomeDist = MathUtils.inverseLerp(0, 0.75, MathUtils.clamp(biomeDist, 0, 0.75));
         return biomes;
     }
@@ -243,7 +234,7 @@ export default class WorldGeneration {
         return Promise.resolve(cell);
     }
 
-    create_gui(gui, sceneRenderer)
+    create_gui(gui, renderScene)
     {
         const { perlin } = this;
         const { debugPlane } = this;
@@ -254,13 +245,13 @@ export default class WorldGeneration {
         noiseFolder.add(perlin, 'octaves', 1, 16);
         noiseFolder.add(perlin, 'frequency', 0, 1);
         const biomeFolder = folder.addFolder("Biome");
-        displayVector(biomeFolder, this.biomeParameter.biomeSize, "biomeSize", 0, 100);
+        GUIHelper.displayVector(biomeFolder, this.biomeParameter.biomeSize, "biomeSize", 0, 100);
         const debugFolder = folder.addFolder("Debug Panel");
         debugFolder.add(debugPlane.material, 'opacity', 0, 1).listen();
         debugFolder.add(debugPlane.position, 'y', 0, 200);
         debugFolder.add(this.debugParameter, 'type', [ 'All','Height', 'Biome', 'Perlin', 'Interpo', 'Smooth', 'IntNoise', 'BiomeDist', 'BiomeBlend' ] )
         folder.add(this, 'draw_debug').on;
-        folder.add(sceneRenderer, 'requestRenderIfNotRequested');
+        folder.add({ reload : renderScene }, 'reload');
         folder.open();
         return folder;
     }
@@ -342,10 +333,10 @@ export default class WorldGeneration {
                     color.r = 1;
                     color.g = biome;
                     color.b = biome;
-                    if (worldPos.x === 96 && worldPos.z === 16)
-                    {
-                        console.log(biomes[0].dist, biomes[1].dist, biomes[0].dist / biomes[1].dist, Math.pow(biomes[0].dist / biomes[1].dist, 5), Math.pow(biomes[0].dist / biomes[1].dist, 5) * 0.5)
-                    }   
+                    // if (worldPos.x === 96 && worldPos.z === 16)
+                    // {
+                    //     console.log(biomes[0].dist, biomes[1].dist, biomes[0].dist / biomes[1].dist, Math.pow(biomes[0].dist / biomes[1].dist, 5), Math.pow(biomes[0].dist / biomes[1].dist, 5) * 0.5)
+                    // }   
                 }
                 else if (this.debugParameter.type == 'BiomeBlend') {
                     let biomes = this.calculate_biome(worldPos);
@@ -388,7 +379,6 @@ export default class WorldGeneration {
         const texture = new THREE.DataTexture(datas, width, height);
         texture.needsUpdate = true;
         this.debugPlane.material.map = texture;
-        console.log(this.debugPlane);
-        console.log(minNoise, maxNoise);
+        // console.log(this.debugPlane);
     }
 }
