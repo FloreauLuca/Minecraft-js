@@ -9,7 +9,7 @@ class VoxelChunk {
     }
 
     computeVoxelOffset(x, y, z) {
-        const { cellSize, cellSliceSize } = this;
+        const { cellSize } = this;
         const voxelX = THREE.MathUtils.euclideanModulo(x, cellSize.x) | 0;
         const voxelY = THREE.MathUtils.euclideanModulo(y, cellSize.y) | 0;
         const voxelZ = THREE.MathUtils.euclideanModulo(z, cellSize.z) | 0;
@@ -44,7 +44,7 @@ class VoxelChunk {
         let cell = this.cells[cellId];
         if (!cell) {
             const { cellSize } = this;
-            cell = Array.apply({ type: 0, color: new THREE.Vector3() }, Array(cellSize.x * cellSize.y * cellSize.z));
+            cell = Array(cellSize.x * cellSize.y * cellSize.z);
             this.cells[cellId] = cell;
         }
         return cell;
@@ -91,7 +91,7 @@ class VoxelChunk {
                             voxelZ + dir[2]);
 
                         if (neighbor != undefined && neighbor != 0) {
-                            if (neighbor.type != 0 ) {
+                            if (neighbor.type != 0) {
                                 continue;
                             }
                         }
@@ -266,12 +266,20 @@ VoxelChunk.faces = [
     },
 ];
 
+let interrupt = false;
+
+document.addEventListener('keydown', function(event) {
+    if(event.key === "Backspace") {
+        interrupt = true;
+    }
+});
+
 export default class World {
-    constructor(worldGen, options, gui, scene, renderScene) {
-        this.scene = scene;
+    constructor(worldGen, parameters, gui, renderScene) {
+        this.terrainTransform = new THREE.Group();
         this.renderScene = renderScene;
-        this.options = options;
-        let cellSize = this.options.cellSize;
+        this.parameters = parameters;
+        let cellSize = this.parameters.cellSize;
         this.world = new VoxelChunk({
             cellSize
         });
@@ -279,29 +287,30 @@ export default class World {
         this.worldGen = worldGen;
 
         this.cellIdToMesh = {};
+
         this.worldGen.draw_debug();
-        this.scene.add(this.worldGen.debugPlane);
         this.worldGen.create_gui(gui, renderScene);
 
         this.create_gui(gui);
         this.create_texture();
+
+        interrupt = false;
     }
 
     regenerate_world() {
+        let cellSize = this.parameters.cellSize;
         this.world = new VoxelChunk({
             cellSize
         });
+        this.cellIdToMesh = {};
 
-        this.worldGen = new WorldGeneration({
-            cellSize: cellSize,
-            seed: seed,
-            mapSize: mapSize
-        });
+        this.terrainTransform.clear();
+        interrupt = false;
         this.generate_world();
     }
 
     create_gui(gui) {
-        const cellCount = this.options.cellCount;
+        const cellCount = this.parameters.cellCount;
         const folder = gui.addFolder("World Gen");
         folder.add(cellCount, 'x', 1, 64);
         folder.add(cellCount, 'y', 1, 64);
@@ -343,7 +352,7 @@ export default class World {
 
     updateCellGeometry(x, y, z) {
         const { world } = this;
-        const cellSize = this.options.cellSize;
+        const cellSize = this.parameters.cellSize;
         const cellX = Math.floor(x / cellSize.x);
         const cellY = Math.floor(y / cellSize.y);
         const cellZ = Math.floor(z / cellSize.z);
@@ -367,19 +376,19 @@ export default class World {
             mesh = new THREE.Mesh(geometry, this.material);
             mesh.name = cellId;
             this.cellIdToMesh[cellId] = mesh;
-            this.scene.add(mesh);
+            this.terrainTransform.add(mesh);
             mesh.position.set(cellX * cellSize.x, cellY * cellSize.y, cellZ * cellSize.z);
         }
     }
 
-    async generate_world() {
+    generate_world() {
         console.log("start_generate_world");
         const { worldGen } = this;
         const { world } = this;
         const { renderScene } = this;
         const self = this;
-        const cellSize = this.options.cellSize;
-        const cellCount = this.options.cellCount;
+        const cellSize = this.parameters.cellSize;
+        const cellCount = this.parameters.cellCount;
 
         const loadingElem = document.querySelector('#loading');
         loadingElem.style.display = 'flex';
@@ -388,7 +397,9 @@ export default class World {
             for (let cz = 0; cz < cellCount.z; cz++) {
                 for (let cx = 0; cx < cellCount.x; cx++) {
                     setTimeout(function () {
-                        let cell = worldGen.generateWorld(cx, cy, cz).then(
+                        if (interrupt)
+                            return;
+                        worldGen.generateWorld(cx, cy, cz).then(
                             function (value) {
                                 for (let y = 0; y < cellSize.y; ++y) {
                                     for (let z = 0; z < cellSize.z; ++z) {
@@ -407,8 +418,8 @@ export default class World {
                                     loadingElem.style.display = 'none';
                                 }
                             });
-                            renderScene();
-                    }, 100);
+                        renderScene();
+                    }, 0);
                 }
             }
         }

@@ -9,8 +9,9 @@ import Light from './engine/light.js';
 import WorldGeneration from './world-generation.js';
 import SceneRenderer from './engine/scene-renderer.js';
 
-const cellSize = new THREE.Vector3(32, 32, 32);
-let cellCount = new THREE.Vector3(16, 1, 16);
+const cellSize = new THREE.Vector3(16, 32, 16);
+const cellCount = new THREE.Vector3(16, 1, 16);
+const biomeSize = new THREE.Vector3(64, 1, 64)
 const mapSize = new THREE.Vector3(cellSize.x * cellCount.x, cellSize.y * cellCount.y, cellSize.z * cellCount.z);
 const seed = Math.random();
 // const seed = 0;
@@ -21,29 +22,31 @@ export default function main() {
     const canvas = document.querySelector('#minecraft');
     const container = document.querySelector('#container');
     container.appendChild(stats.dom);
-    
+
     const fov = 45;
     const aspect = 2;  // the canvas default
     const near = 0.1;
     const far = 100000;
     const camera = new THREE.PerspectiveCamera(fov, aspect, near, far);
-    camera.position.set(0, 128, 0);
+    camera.position.set(0, 64, 0);
 
     const controls = new OrbitControls(camera, canvas);
     controls.target.set(cellSize.x * cellCount.x * 0.5, 0, cellSize.z * cellCount.z * 0.5);
     // controls.target.set(0, 0, 0);
     // controls.enableDamping = true;
+
     // const controls = new FirstPersonControls( camera, renderer.domElement );
     // controls.movementSpeed = 150;
     // controls.lookSpeed = 0.1;
-    
+
     const gui = new GUI();
     gui.close();
 
     const sceneRenderer = new SceneRenderer(camera);
+    const renderScene = sceneRenderer.requestRenderIfNotRequested(sceneRenderer);
 
-    controls.addEventListener('change', sceneRenderer.requestRenderIfNotRequested(sceneRenderer));
-    window.addEventListener('resize', sceneRenderer.requestRenderIfNotRequested(sceneRenderer));
+    controls.addEventListener('change', renderScene);
+    window.addEventListener('resize', renderScene);
 
     function update() {
         if (sceneRenderer.resizeRendererToDisplaySize()) {
@@ -58,20 +61,25 @@ export default function main() {
 
     update();
 
-    const light = new Light(gui, sceneRenderer.requestRenderIfNotRequested(sceneRenderer));
+    const light = new Light(gui, renderScene);
     sceneRenderer.scene.add(light.ambientLight);
     sceneRenderer.scene.add(light.directionalLight);
     sceneRenderer.scene.add(light.directionalLight.target);
+
     const worldGen = new WorldGeneration({
         cellSize: cellSize,
         seed: seed,
-        mapSize: mapSize
+        mapSize: mapSize,
+        biomeSize: biomeSize,
     });
-    const options = 
+
+    const worldParameters =
     {
-        cellSize : cellSize,
-        cellCount : cellCount
+        cellSize: cellSize,
+        cellCount: cellCount
     }
-    const world = new World(worldGen, options, gui, sceneRenderer.scene, sceneRenderer.requestRenderIfNotRequested(sceneRenderer));
+    const world = new World(worldGen, worldParameters, gui, renderScene);
+    sceneRenderer.scene.add(world.worldGen.debugPlane);
+    sceneRenderer.scene.add(world.terrainTransform);
     console.log("generate_terrain");
 }
