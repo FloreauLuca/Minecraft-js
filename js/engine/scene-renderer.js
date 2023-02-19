@@ -9,7 +9,18 @@ export default class SceneRenderer {
         this.renderer = new THREE.WebGLRenderer({ canvas });
         console.log(this.scene);
         this.scene.background = new THREE.Color(0x222222);
-        // scene.background = new THREE.Color('lightblue');
+        const self = this;
+        this.scene.background = new THREE.Color(0x87A5FF);
+        {
+            const loader = new THREE.TextureLoader();
+            const texture = loader.load(
+              './data/skybox.jpg',
+              () => {
+                const rt = new THREE.WebGLCubeRenderTarget(texture.image.height);
+                rt.fromEquirectangularTexture(self.renderer, texture);
+                self.scene.background = rt.texture;
+              });
+          }
     }
 
     resizeRendererToDisplaySize() {
