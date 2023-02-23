@@ -1,6 +1,39 @@
 import * as THREE from 'three';
 import WorldGeneration from '../world-generation.js';
 
+var uniforms =  {
+    time: { value: 1.0 }
+};
+function vertexShader()
+{
+    return `
+    // default vertex attributes provided by BufferGeometry
+    // attribute vec3 position;
+    // attribute vec3 normal;
+    // attribute vec2 uv;
+
+    varying vec3 vPosition;
+
+    void main()
+    {
+        vPosition = position;
+        gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+    }
+    `;
+}
+function fragmentShader()
+{
+  return `
+  uniform float time;
+  varying vec3 vPosition;
+
+      void main()
+      {
+         gl_FragColor = vec4( sin(vPosition.x + time) * 0.1 + 0.5, sin(vPosition.x + time) * 0.1 + 0.5, 1.0, 0.4);
+      }
+  `;
+}
+
 const tileCount = 16;
 class VoxelChunk {
     constructor(options) {
@@ -104,7 +137,7 @@ class VoxelChunk {
                             uvs.push(
                                 (uvVoxelX + uv[0]) / tileCount,
                                 1 - (uvVoxelY + uv[1]) / tileCount);
-                            colors.push(voxel.color.x, voxel.color.y, voxel.color.z);
+                            colors.push(voxel.color.r, voxel.color.g, voxel.color.b);
                         }
                         indices.push(
                             ndx, ndx + 1, ndx + 2,
@@ -277,6 +310,7 @@ document.addEventListener('keydown', function(event) {
 export default class World {
     constructor(worldGen, parameters, gui, renderScene) {
         this.terrainTransform = new THREE.Group();
+        this.waterTransform = new THREE.Group();
         this.renderScene = renderScene;
         this.parameters = parameters;
         let cellSize = this.parameters.cellSize;
@@ -305,6 +339,7 @@ export default class World {
         this.cellIdToMesh = {};
 
         this.terrainTransform.clear();
+        this.waterTransform.clear();
         interrupt = false;
         this.generate_world();
     }
@@ -378,6 +413,26 @@ export default class World {
             this.cellIdToMesh[cellId] = mesh;
             this.terrainTransform.add(mesh);
             mesh.position.set(cellX * cellSize.x, cellY * cellSize.y, cellZ * cellSize.z);
+        }
+        if (positions.length > 0) {
+            const waterGeometry = new THREE.BoxGeometry(cellSize.x, this.worldGen.biomeParameter.waterLevel - 0.2, cellSize.z);
+            var myshader = new THREE.ShaderMaterial({
+                uniforms: uniforms,
+                fragmentShader: fragmentShader(),
+                vertexShader: vertexShader(),
+                transparent: true,
+                depthTest: true,
+                side : THREE.DoubleSide
+            });
+            const water = new THREE.Mesh(waterGeometry, myshader);
+            water.renderOrder = 2;
+            water.onBeforeRender = function( renderer, scene, camera, geometry, material, group ) {
+                console.log(material);
+                material.uniforms.time.value += 0.001;
+            };
+            water.name = "Water";
+            water.position.set(cellX * cellSize.x + waterGeometry.parameters.width / 2.0, cellY * cellSize.y + waterGeometry.parameters.height / 2.0 +0.1, cellZ * cellSize.z + waterGeometry.parameters.depth / 2.0);
+            this.waterTransform.add(water);
         }
     }
 

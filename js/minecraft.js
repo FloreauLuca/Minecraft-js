@@ -10,8 +10,12 @@ import WorldGeneration from './world-generation.js';
 import SceneRenderer from './engine/scene-renderer.js';
 
 const cellSize = new THREE.Vector3(16, 32, 16);
-const cellCount = new THREE.Vector3(16, 1, 16);
-const biomeSize = new THREE.Vector3(64, 1, 64)
+const cellCount = new THREE.Vector3(4, 1, 4);
+const biomeParameter = 
+{
+    biomeSize : new THREE.Vector3(32, 32, 32),
+    waterLevel : 13
+};
 const mapSize = new THREE.Vector3(cellSize.x * cellCount.x, cellSize.y * cellCount.y, cellSize.z * cellCount.z);
 const seed = Math.random();
 // const seed = 0;
@@ -56,6 +60,7 @@ export default function main() {
         }
         controls.update();
         stats.update();
+        renderScene();
         requestAnimationFrame(update);
     }
 
@@ -69,9 +74,9 @@ export default function main() {
     const worldGen = new WorldGeneration({
         cellSize: cellSize,
         seed: seed,
-        mapSize: mapSize,
-        biomeSize: biomeSize,
-    });
+        mapSize: mapSize
+    },
+    biomeParameter);
 
     const worldParameters =
     {
@@ -81,5 +86,74 @@ export default function main() {
     const world = new World(worldGen, worldParameters, gui, renderScene);
     sceneRenderer.scene.add(world.worldGen.debugPlane);
     sceneRenderer.scene.add(world.terrainTransform);
+    sceneRenderer.scene.add(world.waterTransform);
     console.log("generate_terrain");
 }
+
+//https://github.com/mrdoob/three.js/blob/master/examples/webgl_depth_texture.html
+// function setupRenderTarget() {
+
+//     if ( target ) target.dispose();
+
+//     const format = parseFloat( params.format );
+//     const type = parseFloat( params.type );
+
+//     target = new THREE.WebGLRenderTarget( window.innerWidth, window.innerHeight );
+//     target.texture.minFilter = THREE.NearestFilter;
+//     target.texture.magFilter = THREE.NearestFilter;
+//     target.stencilBuffer = ( format === THREE.DepthStencilFormat ) ? true : false;
+//     target.depthTexture = new THREE.DepthTexture();
+//     target.depthTexture.format = format;
+//     target.depthTexture.type = type;
+
+// }
+
+// function setupPost() {
+
+//     // Setup post processing stage
+//     postCamera = new THREE.OrthographicCamera( - 1, 1, 1, - 1, 0, 1 );
+//     postMaterial = new THREE.ShaderMaterial( {
+//         vertexShader: document.querySelector( '#post-vert' ).textContent.trim(),
+//         fragmentShader: document.querySelector( '#post-frag' ).textContent.trim(),
+//         uniforms: {
+//             cameraNear: { value: camera.near },
+//             cameraFar: { value: camera.far },
+//             tDiffuse: { value: null },
+//             tDepth: { value: null }
+//         }
+//     } );
+//     const postPlane = new THREE.PlaneGeometry( 2, 2 );
+//     const postQuad = new THREE.Mesh( postPlane, postMaterial );
+//     postScene = new THREE.Scene();
+//     postScene.add( postQuad );
+
+// }
+
+// function setupScene() {
+
+//     scene = new THREE.Scene();
+
+//     const geometry = new THREE.TorusKnotGeometry( 1, 0.3, 128, 64 );
+//     const material = new THREE.MeshBasicMaterial( { color: 'blue' } );
+
+//     const count = 50;
+//     const scale = 5;
+
+//     for ( let i = 0; i < count; i ++ ) {
+
+//         const r = Math.random() * 2.0 * Math.PI;
+//         const z = ( Math.random() * 2.0 ) - 1.0;
+//         const zScale = Math.sqrt( 1.0 - z * z ) * scale;
+
+//         const mesh = new THREE.Mesh( geometry, material );
+//         mesh.position.set(
+//             Math.cos( r ) * zScale,
+//             Math.sin( r ) * zScale,
+//             z * scale
+//         );
+//         mesh.rotation.set( Math.random(), Math.random(), Math.random() );
+//         scene.add( mesh );
+
+//     }
+
+// }
