@@ -29,7 +29,8 @@ function fragmentShader()
 
       void main()
       {
-         gl_FragColor = vec4( sin(vPosition.x + time) * 0.1 + 0.5, sin(vPosition.x + time) * 0.1 + 0.5, 1.0, 0.4);
+        //  gl_FragColor = vec4( sin(vPosition.x + time) * 0.1 + 0.5, sin(vPosition.x + time) * 0.1 + 0.5, 1.0, 0.4);
+        gl_FragColor = vec4( sin(vPosition.x + time) * 0.01 + 0.2, sin(vPosition.x + time) * 0.01 + 0.2, 0.8, 0.8);
       }
   `;
 }
@@ -415,7 +416,7 @@ export default class World {
             mesh.position.set(cellX * cellSize.x, cellY * cellSize.y, cellZ * cellSize.z);
         }
         if (positions.length > 0) {
-            const waterGeometry = new THREE.BoxGeometry(cellSize.x, this.worldGen.biomeParameter.waterLevel - 0.2, cellSize.z);
+            const waterGeometry = new THREE.BoxGeometry(cellSize.x+0.2, this.worldGen.biomeParameter.waterLevel - 0.2, cellSize.z+0.2);
             var myshader = new THREE.ShaderMaterial({
                 uniforms: uniforms,
                 fragmentShader: fragmentShader(),
@@ -427,11 +428,11 @@ export default class World {
             const water = new THREE.Mesh(waterGeometry, myshader);
             water.renderOrder = 2;
             water.onBeforeRender = function( renderer, scene, camera, geometry, material, group ) {
-                console.log(material);
+                // console.log(material);
                 material.uniforms.time.value += 0.001;
             };
             water.name = "Water";
-            water.position.set(cellX * cellSize.x + waterGeometry.parameters.width / 2.0, cellY * cellSize.y + waterGeometry.parameters.height / 2.0 +0.1, cellZ * cellSize.z + waterGeometry.parameters.depth / 2.0);
+            water.position.set(cellX * cellSize.x + waterGeometry.parameters.width / 2.0-0.1, cellY * cellSize.y + waterGeometry.parameters.height / 2.0 +0.1, cellZ * cellSize.z + waterGeometry.parameters.depth / 2.0-0.1);
             this.waterTransform.add(water);
         }
     }

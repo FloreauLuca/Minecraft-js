@@ -119,60 +119,93 @@ class Biome {
         }
 
         biomes = Biome.computeBiomes(worldPos, biomes);
-
+        let biomeBlendable = biomes;
         let sum = 0;
-        biomes.forEach(biome => {
-            sum += 1 / biome.dist;
-        });
+        for (let index = 0; index < biomeBlendable.length; index++) {
+            // if (biomeBlendable[index].dist> biomeBlendable[index+1].dist)
+            // {
+            //     biomeBlendable.splice(index+1, biomeBlendable.length - index);
+            //     break;
+            // }
+            sum += (1.0 / Math.pow(biomeBlendable[index].dist / biomeSize.x, 5.0));
+        }
+        let height = 0;
+        let color = new THREE.Color(0, 0, 0);
+        // let type = 0;
         // let height = biomes[0].computeBlockHeight(worldPos);
         // let color = biomes[0].computeBiomeTint(worldPos);
         // let type = biomes[0].computeBlockType(worldPos);
-        const biomeDist = biomes[0].dist / biomes[1].dist;
+        // const biomeDist = biomes[0].dist / biomes[1].dist;
         //console.log(biomeDist, biomes[0].dist, biomes[1].dist);
-        let height = MathUtils.lerp(biomes[0].computeBlockHeight(worldPos), biomes[1].computeBlockHeight(worldPos),biomeDist);
-        let color = new THREE.Color(0, 0, 0);
-        let type = biomes[0].computeBlockType(worldPos);
-        const color1 = Color.hsbToRgb(biomes[0].type * 360.0, 100.0, 100.0);
-        const color2 = Color.hsbToRgb(biomes[1].type * 360.0, 100.0, 100.0);
-        color = new THREE.Color(MathUtils.lerp(color1[0], color2[0], biomeDist)/255, 1, 0);
+        // let height = MathUtils.lerp(biomes[0].computeBlockHeight(worldPos), biomes[1].computeBlockHeight(worldPos),biomeDist);
+        //let color = new THREE.Color(0, 0, 0);
+        // let type = biomes[0].computeBlockType(worldPos);
+        // const color1 = Color.hsbToRgb(biomes[0].type * 360.0, 100.0, 100.0);
+        // const color2 = Color.hsbToRgb(biomes[1].type * 360.0, 100.0, 100.0);
+        // color = new THREE.Color(MathUtils.lerp(color1[0], color2[0], biomeDist)/255, 1, 0);
+        // if (type != 16 * 2 + 6)
+        // {
+        //     color = new THREE.Color(1, 1, 1);
+        // }
+        let sumWeight = 0;
+        // if (worldPos.x === debugPos.x && worldPos.z === debugPos.z) {
+        //     console.log("biomeBlendable ", biomeBlendable.length);
+        // }
+        
+        if (biomeBlendable[0].dist < 1)
+        {
+            height = biomeBlendable[0].computeBlockHeight(worldPos);
+            color.add(biomeBlendable[0].computeBiomeTint(worldPos));
+        }
+        else {
+            // ================================= TODO Add dot check
+            biomeBlendable.forEach(biome => {
+                if (biome.dist < 1) {
+                    height = biome.computeBlockHeight(worldPos);
+                    return;
+                }
+                //const biomeWeight = (1.0 / Math.pow(biome.dist / biomeSize.x, 3.0)) / sum;
+                const biomeWeight = (1.0 / Math.pow(biome.dist / biomeSize.x, 5.0)) / sum;
+                // const biomeWeight = (1.0 / Math.pow(biomeBlendable[4].dist / biomeSize.x, 3.0)) - sum ;
+                //const biomeWeight = biomeBlendable[4].dist / biomeSize.x;
+                // const biomeWeight = biomeBlendable[0].dist;
+                sumWeight += biomeWeight;
+                height += biome.computeBlockHeight(worldPos) * biomeWeight;
+                //height += biomeWeight;
+                // if (worldPos.x === debugPos.x && worldPos.z === debugPos.z) {
+                //     if (worldPos.y === 0) {
+                //         console.log("Weight ", sum, biomeWeight, biome.dist / biomeSize.x);
+                //         console.log("Weight ", biome.dist, sum, biomeWeight, sumWeight)
+                //         console.log("Height ", biome.computeBlockHeight(worldPos), biome.computeBlockHeight(worldPos) * biomeWeight, height)
+                //     }
+                // }
+                color.add(biome.computeBiomeTint(worldPos).multiplyScalar(biomeWeight));
+            });
+        }
+        // if (worldPos.x === debugPos.x && worldPos.z === debugPos.z) {
+        //     if (worldPos.y === 0) {
+        //         console.log("color ", color);    
+        //     }
+        // }
+        let type = biomes[0].computeBlockType(worldPos, height);
         if (type != 16 * 2 + 6)
         {
             color = new THREE.Color(1, 1, 1);
         }
-        
-        // ================================= TODO Add dot check
-        // let sumWeight = 0;
-        // biomes.forEach(biome => {
-        //     const biomeWeight = (1 / biome.dist)  / sum;
-        //     sumWeight += biomeWeight;
-        //     height += biome.computeBlockHeight(worldPos) * biomeWeight;
-        //     if (worldPos.x === debugPos.x && worldPos.z === debugPos.z) {
-        //         // if (worldPos.y === 0) {
-        //         //     for (let index = 0; index < 10; index++) {
-        //         //         const biomeWeight = biome.dist / biomes[0].dist;
-        //         //         console.log("Weight ", index, sum, biomeWeight)
-        //         //     }
-        //         // }
-        //         console.log("Weight ", biome.dist, sum, biomeWeight, sumWeight)
-        //         console.log("Height ", biome.computeBlockHeight(worldPos), biome.computeBlockHeight(worldPos) * biomeWeight, height)
-        //     }
-        //     color.add(biome.computeBiomeTint(worldPos).multiplyScalar(biomeWeight));
-        // });
         return { height: height, color: color, type: type, biomes: biomes };
     }
 
     computeBlockHeight(worldPos) {
         let height = 0;
         //height = this.type;
-        // height = this.perlin.perlin_noise_01(worldPos.x, worldPos.z) * 0.25 + this.type * 0.75;
-         height = this.perlin.perlin_noise_01(worldPos.x, worldPos.z);
+        height = this.perlin.perlin_noise_01(worldPos.x * 2, worldPos.z * 2) * this.type * this.type * 0.75 + this.type * 0.25;
+        // height = this.perlin.perlin_noise_01(worldPos.x, worldPos.z);
         height = height * (this.biomeParameter.biomeSize.y * 0.9);
         return height;
     }
 
-    computeBlockType(worldPos) {
+    computeBlockType(worldPos, height) {
         let type = 0;
-        const height = this.computeBlockHeight(worldPos);
         const waterLevel = this.biomeParameter.waterLevel;
         const snowLevel = this.biomeParameter.biomeSize.y * 0.75;
         const y = worldPos.y;
@@ -219,13 +252,13 @@ class Biome {
     }
 
     computeBiomeTint(worldPos) {
-        let color = new THREE.Color(1, 1, 1);
+        let color = new THREE.Color(this.type, 1, 0);
         return color
     }
 }
 
 export default class WorldGeneration {
-    constructor(options, biomeParameter) {
+    constructor(options, biomeParameter, debugParameter) {
         this.cellSize = options.cellSize;
         this.perlin = new PerlinNoise({
             nodesCount: 4,
@@ -235,9 +268,7 @@ export default class WorldGeneration {
             frequency: 0.05
         })
         this.mapSize = options.mapSize;
-        this.debugParameter = {
-            type: 'Height'
-        }
+        this.debugParameter = debugParameter;
         this.biomeParameter = biomeParameter;
         this.biomes = {};
     }
@@ -311,10 +342,10 @@ export default class WorldGeneration {
                     // color = color.divideScalar(255.0);
                     worldPos.y = y + cy * cellSize.y;
                     let blockInfos = Biome.computeBlendedBlock(worldPos, this);
-                    if (worldPos.x === debugPos.x && worldPos.z === debugPos.z)
-                    {
-                        console.log(blockInfos);
-                    }
+                    // if (worldPos.x === debugPos.x && worldPos.z === debugPos.z)
+                    // {
+                    //     console.log(blockInfos);
+                    // }
                     this.setBlockTypeFromCell(cell, x, y, z, { type: blockInfos.type, color: blockInfos.color });
                 }
             }
@@ -348,13 +379,14 @@ export default class WorldGeneration {
     draw_debug() {
         const width = this.mapSize.x;
         const height = this.mapSize.z;
+        const {debugParameter} = this;
 
         const size = width * height;
         if (this.debugPlane == undefined) {
             this.debugPlane = new THREE.Mesh();
             this.debugPlane.geometry = new THREE.PlaneGeometry(width, height);
-            this.debugPlane.material = new THREE.MeshBasicMaterial({ transparent: true, alphaTest: 0.01, side: THREE.DoubleSide, opacity: 0 });
-            this.debugPlane.position.set(width / 2, 50, height / 2);
+            this.debugPlane.material = new THREE.MeshBasicMaterial({ transparent: true, alphaTest: 0.01, side: THREE.DoubleSide, opacity: debugParameter.opacity });
+            this.debugPlane.position.set(width / 2, debugParameter.height, height / 2);
             this.debugPlane.rotation.set(Math.PI / 2, 0, 0);
         }
         let minNoise = 25;
@@ -365,15 +397,16 @@ export default class WorldGeneration {
                 // setTimeout(function () {
                 let worldPos = new THREE.Vector3(x, 0, z);
                 let color = { r: 0, g: 0, b: 0 };
-                if (this.debugParameter.type == 'Height') {
-                    let noise = this.calculate_height(worldPos) / this.biomeParameter.biomeSize.y;
+                if (debugParameter.type == 'Height') {
+                    // let noise = MathUtils.clamp(this.calculate_height(worldPos), 0, 1);
+                    let noise = this.calculate_height(worldPos) / (this.biomeParameter.biomeSize.y * 0.9);
                     minNoise = Math.min(minNoise, noise);
                     maxNoise = Math.max(maxNoise, noise);
                     color.r = noise;
                     color.g = noise;
                     color.b = 1;
                 }
-                else if (this.debugParameter.type == 'Perlin') {
+                else if (debugParameter.type == 'Perlin') {
                     let noise = this.perlin.perlin_noise(worldPos.x, worldPos.z);
                     minNoise = Math.min(minNoise, noise);
                     maxNoise = Math.max(maxNoise, noise);
@@ -382,7 +415,7 @@ export default class WorldGeneration {
                     color.g = noise;
                     color.b = noise;
                 }
-                else if (this.debugParameter.type == 'Interpo') {
+                else if (debugParameter.type == 'Interpo') {
                     let noise = this.perlin.interpolate_noise(worldPos.x * this.perlin.frequency, worldPos.z * this.perlin.frequency);
                     minNoise = Math.min(minNoise, noise);
                     maxNoise = Math.max(maxNoise, noise);
@@ -391,7 +424,7 @@ export default class WorldGeneration {
                     color.g = noise;
                     color.b = noise;
                 }
-                else if (this.debugParameter.type == 'Smooth') {
+                else if (debugParameter.type == 'Smooth') {
                     let noise = this.perlin.smooth_noise(worldPos.x * this.perlin.frequency, worldPos.z * this.perlin.frequency);
                     minNoise = Math.min(minNoise, noise);
                     maxNoise = Math.max(maxNoise, noise);
@@ -400,7 +433,7 @@ export default class WorldGeneration {
                     color.g = noise;
                     color.b = noise;
                 }
-                else if (this.debugParameter.type == 'IntNoise') {
+                else if (debugParameter.type == 'IntNoise') {
                     let noise = this.perlin.int_noise_2d(worldPos.x * this.perlin.frequency, worldPos.z * this.perlin.frequency);
                     minNoise = Math.min(minNoise, noise);
                     maxNoise = Math.max(maxNoise, noise);
@@ -409,20 +442,20 @@ export default class WorldGeneration {
                     color.g = noise;
                     color.b = noise;
                 }
-                else if (this.debugParameter.type == 'Biome') {
+                else if (debugParameter.type == 'Biome') {
                     let biome = this.calculate_biome(worldPos)[0].type;
                     color.r = biome;
                     color.g = 1;
                     color.b = biome;
                 }
-                else if (this.debugParameter.type == 'BiomeDist') {
+                else if (debugParameter.type == 'BiomeDist') {
                     let biomes = this.calculate_biome(worldPos);
-                    let biome = biomes[0].dist / biomes[1].dist;
+                    let biome = biomes[0].dist / this.biomeParameter.biomeSize.x;
                     color.r = 1;
                     color.g = biome;
                     color.b = biome;
                 }
-                else if (this.debugParameter.type == 'BiomeBlend') {
+                else if (debugParameter.type == 'BiomeBlend') {
                     let biomes = this.calculate_biome(worldPos);
                     const biomeDist = Math.pow(biomes[0].dist / biomes[1].dist, 5) * 0.5;
                     const biomeBlend = MathUtils.lerp(biomes[0].type, biomes[1].type, biomeDist)
@@ -434,7 +467,7 @@ export default class WorldGeneration {
                     color.g = blendColor.y;
                     color.b = blendColor.z;
                 }
-                else if (this.debugParameter.type == 'All') {
+                else if (debugParameter.type == 'All') {
                     let biome = this.calculate_biome(worldPos)[0];
                     let height = this.calculate_height(worldPos);
                     color.r = biome.dist;
@@ -442,14 +475,14 @@ export default class WorldGeneration {
                     color.b = height;
                 }
 
-                // if (worldPos.x === debugPos.x && worldPos.z === debugPos.z)
-                // {
-                //     let biomes = this.calculate_biome(worldPos);
-                //     console.log(biomes[0].dist, biomes[1].dist, biomes[0].dist / biomes[1].dist, Math.pow(biomes[0].dist / biomes[1].dist, 5), Math.pow(biomes[0].dist / biomes[1].dist, 5) * 0.5)
-                //     color.r = 0;
-                //     color.g = 0;
-                //     color.b = 0;
-                // }   
+                if (worldPos.x === debugPos.x && worldPos.z === debugPos.z)
+                {
+                    let biomes = this.calculate_biome(worldPos);
+                    console.log(biomes[0].dist, biomes[1].dist, biomes[0].dist / biomes[1].dist, Math.pow(biomes[0].dist / biomes[1].dist, 5), Math.pow(biomes[0].dist / biomes[1].dist, 5) * 0.5)
+                    color.r = 0;
+                    color.g = 0;
+                    color.b = 0;
+                }   
 
                 const stride = (x + width * z) * 4;
                 const r = Math.floor(color.r * 255);

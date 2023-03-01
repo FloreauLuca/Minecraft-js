@@ -10,12 +10,17 @@ import WorldGeneration from './world-generation.js';
 import SceneRenderer from './engine/scene-renderer.js';
 
 const cellSize = new THREE.Vector3(16, 32, 16);
-const cellCount = new THREE.Vector3(4, 1, 4);
+const cellCount = new THREE.Vector3(8, 1, 8);
 const biomeParameter = 
 {
     biomeSize : new THREE.Vector3(32, 32, 32),
-    waterLevel : 13
+    waterLevel : 7
 };
+const debugParameter = {
+    type: 'Height',
+    opacity : 0.0,
+    height : 50
+}
 const mapSize = new THREE.Vector3(cellSize.x * cellCount.x, cellSize.y * cellCount.y, cellSize.z * cellCount.z);
 const seed = Math.random();
 // const seed = 0;
@@ -74,9 +79,11 @@ export default function main() {
     const worldGen = new WorldGeneration({
         cellSize: cellSize,
         seed: seed,
-        mapSize: mapSize
+        mapSize: mapSize,
+        debugParameter : debugParameter
     },
-    biomeParameter);
+    biomeParameter,
+    debugParameter);
 
     const worldParameters =
     {
