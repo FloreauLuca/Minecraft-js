@@ -136,8 +136,12 @@ class Biome {
                 }
                 const biomeWeight = (1.0 / Math.pow(biome.dist / biomeSize.x, 5.0)) / sum;
                 sumWeight += biomeWeight;
-                height += biome.computeBlockHeight(worldPos) * biomeWeight;
-                color.add(biome.computeBiomeTint(worldPos).multiplyScalar(biomeWeight));
+                //console.log(biomeWeight);
+                if (biomeWeight > 0.001)
+                {
+                    height += biome.computeBlockHeight(worldPos) * biomeWeight;
+                    color.add(biome.computeBiomeTint(worldPos).multiplyScalar(biomeWeight));
+                }
             });
         }
         // if (worldPos.x === debugPos.x && worldPos.z === debugPos.z) {
@@ -291,7 +295,7 @@ class Biome {
                 }
             case 3:
                 {
-                    color = new THREE.Color(0.5, 1, 0);
+                    color = new THREE.Color(0.5, 0.75, 0);
                     break;
                 }
             case 4:
@@ -301,7 +305,7 @@ class Biome {
                 }
             case 5:
                 {
-                    color = new THREE.Color(1, 1, 0);
+                    color = new THREE.Color(0, 0.75, 0.25);
                     break;
                 }
             case 6:
@@ -316,7 +320,7 @@ class Biome {
                 }
             case 8:
                 {
-                    color = new THREE.Color(1, 1, 0);
+                    color = new THREE.Color(0, 1, 0);
                     break;
                 }
             case 9:

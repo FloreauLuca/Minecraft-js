@@ -416,24 +416,30 @@ export default class World {
             mesh.position.set(cellX * cellSize.x, cellY * cellSize.y, cellZ * cellSize.z);
         }
         if (positions.length > 0) {
-            const waterGeometry = new THREE.BoxGeometry(cellSize.x+0.2, this.worldGen.biomeParameter.waterLevel - 0.2, cellSize.z+0.2);
-            var myshader = new THREE.ShaderMaterial({
-                uniforms: uniforms,
-                fragmentShader: fragmentShader(),
-                vertexShader: vertexShader(),
-                transparent: true,
-                depthTest: true,
-                side : THREE.DoubleSide
-            });
-            const water = new THREE.Mesh(waterGeometry, myshader);
-            water.renderOrder = 2;
-            water.onBeforeRender = function( renderer, scene, camera, geometry, material, group ) {
-                // console.log(material);
-                material.uniforms.time.value += 0.001;
-            };
-            water.name = "Water";
-            water.position.set(cellX * cellSize.x + waterGeometry.parameters.width / 2.0-0.1, cellY * cellSize.y + waterGeometry.parameters.height / 2.0 +0.1, cellZ * cellSize.z + waterGeometry.parameters.depth / 2.0-0.1);
-            this.waterTransform.add(water);
+            let name = "Water"+" "+cellId;
+            let water = this.waterTransform.getObjectByName(name);
+            if (water == undefined)
+            {
+                const waterGeometry = new THREE.BoxGeometry(cellSize.x+0.2, this.worldGen.biomeParameter.waterLevel - 0.2, cellSize.z+0.2);
+                var myshader = new THREE.ShaderMaterial({
+                    uniforms: uniforms,
+                    fragmentShader: fragmentShader(),
+                    vertexShader: vertexShader(),
+                    transparent: true,
+                    depthTest: true,
+                    side : THREE.DoubleSide,
+                    clipShadows:true
+                });
+                water = new THREE.Mesh(waterGeometry, myshader);
+                water.renderOrder = 2;
+                water.onBeforeRender = function( renderer, scene, camera, geometry, material, group ) {
+                    // console.log(material);
+                    material.uniforms.time.value += 0.001;
+                };
+                water.name = name;
+                water.position.set(cellX * cellSize.x + waterGeometry.parameters.width / 2.0-0.1, cellY * cellSize.y + waterGeometry.parameters.height / 2.0 +0.1, cellZ * cellSize.z + waterGeometry.parameters.depth / 2.0-0.1);
+                this.waterTransform.add(water);
+            }
         }
     }
 
