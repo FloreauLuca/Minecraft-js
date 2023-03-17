@@ -22,8 +22,8 @@ const debugParameter = {
     height : 50
 }
 const mapSize = new THREE.Vector3(cellSize.x * cellCount.x, cellSize.y * cellCount.y, cellSize.z * cellCount.z);
-const seed = Math.random();
-// const seed = 0;
+//const seed = Math.random();
+const seed = 0;
 
 
 export default function main() {

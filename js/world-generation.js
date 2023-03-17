@@ -340,7 +340,7 @@ export default class WorldGeneration {
             nodesCount: 4,
             seed: options.seed,
             persistance: 0.8,
-            octaves: 3,
+            octaves: 2,
             frequency: 0.05
         })
         this.mapSize = options.mapSize;

@@ -1,11 +1,10 @@
 import * as THREE from 'three';
 import WorldGeneration from '../world-generation.js';
 
-var uniforms =  {
+var uniforms = {
     time: { value: 1.0 }
 };
-function vertexShader()
-{
+function vertexShader() {
     return `
     // default vertex attributes provided by BufferGeometry
     // attribute vec3 position;
@@ -21,16 +20,15 @@ function vertexShader()
     }
     `;
 }
-function fragmentShader()
-{
-  return `
+function fragmentShader() {
+    return `
   uniform float time;
   varying vec3 vPosition;
 
       void main()
       {
         //  gl_FragColor = vec4( sin(vPosition.x + time) * 0.1 + 0.5, sin(vPosition.x + time) * 0.1 + 0.5, 1.0, 0.4);
-        gl_FragColor = vec4( sin(vPosition.x + time) * 0.01 + 0.2, sin(vPosition.x + time) * 0.01 + 0.2, 0.8, 0.8);
+        gl_FragColor = vec4( sin(vPosition.x + time) * 0.01 + 0.2, sin(vPosition.x + time) * 0.01 + 0.2, 0.8, 0.95);
       }
   `;
 }
@@ -302,11 +300,69 @@ VoxelChunk.faces = [
 
 let interrupt = false;
 
-document.addEventListener('keydown', function(event) {
-    if(event.key === "Backspace") {
+document.addEventListener('keydown', function (event) {
+    if (event.key === "Backspace") {
         interrupt = true;
     }
 });
+
+class Water {
+    constructor(chunkPos, waterTransform, chunkSize, waterLevel) {
+        var myshader = new THREE.ShaderMaterial({
+            uniforms: uniforms,
+            fragmentShader: fragmentShader(),
+            vertexShader: vertexShader(),
+            transparent: true,
+            depthTest: true,
+            side: THREE.DoubleSide,
+            clipShadows: true
+        });
+
+        this.topPlane = new THREE.Mesh(
+            new THREE.PlaneGeometry(chunkSize.x, chunkSize.z),
+            myshader);
+        this.topPlane.renderOrder = 2;
+        this.topPlane.onBeforeRender = function (renderer, scene, camera, geometry, material, group) {
+            material.uniforms.time.value += 0.001;
+        };
+        this.topPlane.position.set(chunkPos.x * chunkSize.x + chunkSize.x / 2.0, chunkPos.y * chunkSize.y + waterLevel - 0.2, chunkPos.z * chunkSize.z + chunkSize.z / 2.0);
+        this.topPlane.rotation.set(Math.PI / 2, 0, 0);
+        waterTransform.add(this.topPlane);
+
+        this.rightPlane = new THREE.Mesh(
+            new THREE.PlaneGeometry(chunkSize.x, waterLevel - 0.2),
+            myshader);
+        this.rightPlane.position.set(chunkPos.x * chunkSize.x + 0.1, chunkPos.y * chunkSize.y + (waterLevel - 0.2) / 2.0, chunkPos.z * chunkSize.z + chunkSize.z / 2.0);
+        this.rightPlane.rotation.set(0, Math.PI / 2, 0);
+        waterTransform.add(this.rightPlane);
+
+        this.leftPlane = new THREE.Mesh(
+            new THREE.PlaneGeometry(chunkSize.x, waterLevel - 0.2),
+            myshader);
+        this.leftPlane.position.set(chunkPos.x * chunkSize.x + chunkSize.x - 0.1, chunkPos.y * chunkSize.y + (waterLevel - 0.2) / 2.0, chunkPos.z * chunkSize.z + chunkSize.z / 2.0);
+        this.leftPlane.rotation.set(0, Math.PI / 2, 0);
+        waterTransform.add(this.leftPlane);
+
+        this.backwardPlane = new THREE.Mesh(
+            new THREE.PlaneGeometry(chunkSize.x, waterLevel - 0.2),
+            myshader);
+        this.backwardPlane.position.set(chunkPos.x * chunkSize.x + chunkSize.x / 2.0, chunkPos.y * chunkSize.y + (waterLevel - 0.2) / 2.0, chunkPos.z * chunkSize.z + 0.1);
+        waterTransform.add(this.backwardPlane);
+
+        this.forwardPlane = new THREE.Mesh(
+            new THREE.PlaneGeometry(chunkSize.x, waterLevel - 0.2),
+            myshader);
+        this.forwardPlane.position.set(chunkPos.x * chunkSize.x + chunkSize.x / 2.0, chunkPos.y * chunkSize.y + (waterLevel - 0.2) / 2.0, chunkPos.z * chunkSize.z + chunkSize.z - 0.1);
+        waterTransform.add(this.forwardPlane);
+    }
+
+    updateWaterGeometry(right, left, backward, forward) {
+        this.rightPlane.visible = right;
+        this.leftPlane.visible = left;
+        this.backwardPlane.visible = backward;
+        this.forwardPlane.visible = forward;
+    }
+}
 
 export default class World {
     constructor(worldGen, parameters, gui, renderScene) {
@@ -322,6 +378,7 @@ export default class World {
         this.worldGen = worldGen;
 
         this.cellIdToMesh = {};
+        this.cellIdToWaterMesh = {};
 
         this.worldGen.draw_debug();
         this.worldGen.create_gui(gui, renderScene);
@@ -338,6 +395,7 @@ export default class World {
             cellSize
         });
         this.cellIdToMesh = {};
+        this.cellIdToWaterMesh = {};
 
         this.terrainTransform.clear();
         this.waterTransform.clear();
@@ -415,31 +473,19 @@ export default class World {
             this.terrainTransform.add(mesh);
             mesh.position.set(cellX * cellSize.x, cellY * cellSize.y, cellZ * cellSize.z);
         }
+
         if (positions.length > 0) {
-            let name = "Water"+" "+cellId;
-            let water = this.waterTransform.getObjectByName(name);
-            if (water == undefined)
-            {
-                const waterGeometry = new THREE.BoxGeometry(cellSize.x+0.2, this.worldGen.biomeParameter.waterLevel - 0.2, cellSize.z+0.2);
-                var myshader = new THREE.ShaderMaterial({
-                    uniforms: uniforms,
-                    fragmentShader: fragmentShader(),
-                    vertexShader: vertexShader(),
-                    transparent: true,
-                    depthTest: true,
-                    side : THREE.DoubleSide,
-                    clipShadows:true
-                });
-                water = new THREE.Mesh(waterGeometry, myshader);
-                water.renderOrder = 2;
-                water.onBeforeRender = function( renderer, scene, camera, geometry, material, group ) {
-                    // console.log(material);
-                    material.uniforms.time.value += 0.001;
-                };
-                water.name = name;
-                water.position.set(cellX * cellSize.x + waterGeometry.parameters.width / 2.0-0.1, cellY * cellSize.y + waterGeometry.parameters.height / 2.0 +0.1, cellZ * cellSize.z + waterGeometry.parameters.depth / 2.0-0.1);
-                this.waterTransform.add(water);
+            let water = this.cellIdToWaterMesh[cellId];
+            if (!water) {
+                water = new Water(new THREE.Vector3(cellX, cellY, cellZ), this.waterTransform, cellSize, this.worldGen.biomeParameter.waterLevel);
+                this.cellIdToWaterMesh[cellId] = water;
             }
+            water.updateWaterGeometry(
+                this.cellIdToWaterMesh[`${cellX - 1},${cellY},${cellZ}`] == undefined,
+                this.cellIdToWaterMesh[`${cellX + 1},${cellY},${cellZ}`] == undefined,
+                this.cellIdToWaterMesh[`${cellX},${cellY},${cellZ - 1}`] == undefined,
+                this.cellIdToWaterMesh[`${cellX},${cellY},${cellZ + 1}`] == undefined
+            );
         }
     }
 
