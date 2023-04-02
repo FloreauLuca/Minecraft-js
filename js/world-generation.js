@@ -226,12 +226,12 @@ class Biome {
                 }
                 else {
                     if (this.type == 7) {
-                        if (height > snowLevel)
+                        if (y > snowLevel - 5)
                         {
                             // snow
                             type = 16 * 2 + 15;
                         }
-                        else if (height > snowLevel - 5){
+                        else {
                             // stone
                             type = 2;
                         }
@@ -252,7 +252,18 @@ class Biome {
                     }
                 }
             }
-            else if (y <= height / 2 || this.type == 7 || this.type == 9) {
+            else if (this.type == 7) {
+                if (y > snowLevel)
+                {
+                    // snow
+                    type = 16 * 2 + 15;
+                }
+                else{
+                    // stone
+                    type = 2;
+                }
+            }
+            else if (y <= height / 2 || this.type == 9) {
                 // stone
                 type = 2;
             }
@@ -280,12 +291,12 @@ class Biome {
         {
             case 0:
                 {
-                    color = new THREE.Color(0, 1, 0);
+                    color = new THREE.Color(1, 1, 1);
                     break;
                 }
             case 1:
                 {
-                    color = new THREE.Color(0, 1, 0);
+                    color = new THREE.Color(1, 1, 1);
                     break;
                 }
             case 2:
@@ -300,7 +311,7 @@ class Biome {
                 }
             case 4:
                 {
-                    color = new THREE.Color(1, 1, 0);
+                    color = new THREE.Color(0, 1, 0);
                     break;
                 }
             case 5:
@@ -310,7 +321,7 @@ class Biome {
                 }
             case 6:
                 {
-                    color = new THREE.Color(0.5, 1, 0);
+                    color = new THREE.Color(1.0, 1.0, 0);
                     break;
                 }
             case 7:
@@ -320,7 +331,7 @@ class Biome {
                 }
             case 8:
                 {
-                    color = new THREE.Color(0, 1, 0);
+                    color = new THREE.Color(0, 0.75, 0);
                     break;
                 }
             case 9:

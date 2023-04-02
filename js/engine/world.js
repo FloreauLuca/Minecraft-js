@@ -1,37 +1,6 @@
 import * as THREE from 'three';
 import WorldGeneration from '../world-generation.js';
-
-var uniforms = {
-    time: { value: 1.0 }
-};
-function vertexShader() {
-    return `
-    // default vertex attributes provided by BufferGeometry
-    // attribute vec3 position;
-    // attribute vec3 normal;
-    // attribute vec2 uv;
-
-    varying vec3 vPosition;
-
-    void main()
-    {
-        vPosition = position;
-        gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
-    }
-    `;
-}
-function fragmentShader() {
-    return `
-  uniform float time;
-  varying vec3 vPosition;
-
-      void main()
-      {
-        //  gl_FragColor = vec4( sin(vPosition.x + time) * 0.1 + 0.5, sin(vPosition.x + time) * 0.1 + 0.5, 1.0, 0.4);
-        gl_FragColor = vec4( sin(vPosition.x + time) * 0.01 + 0.2, sin(vPosition.x + time) * 0.01 + 0.2, 0.8, 0.95);
-      }
-  `;
-}
+import WaterObj from './water.js';
 
 const tileCount = 16;
 class VoxelChunk {
@@ -306,67 +275,10 @@ document.addEventListener('keydown', function (event) {
     }
 });
 
-class Water {
-    constructor(chunkPos, waterTransform, chunkSize, waterLevel) {
-        var myshader = new THREE.ShaderMaterial({
-            uniforms: uniforms,
-            fragmentShader: fragmentShader(),
-            vertexShader: vertexShader(),
-            transparent: true,
-            depthTest: true,
-            side: THREE.DoubleSide,
-            clipShadows: true
-        });
-
-        this.topPlane = new THREE.Mesh(
-            new THREE.PlaneGeometry(chunkSize.x, chunkSize.z),
-            myshader);
-        this.topPlane.renderOrder = 2;
-        this.topPlane.onBeforeRender = function (renderer, scene, camera, geometry, material, group) {
-            material.uniforms.time.value += 0.001;
-        };
-        this.topPlane.position.set(chunkPos.x * chunkSize.x + chunkSize.x / 2.0, chunkPos.y * chunkSize.y + waterLevel - 0.2, chunkPos.z * chunkSize.z + chunkSize.z / 2.0);
-        this.topPlane.rotation.set(Math.PI / 2, 0, 0);
-        waterTransform.add(this.topPlane);
-
-        this.rightPlane = new THREE.Mesh(
-            new THREE.PlaneGeometry(chunkSize.x, waterLevel - 0.2),
-            myshader);
-        this.rightPlane.position.set(chunkPos.x * chunkSize.x + 0.1, chunkPos.y * chunkSize.y + (waterLevel - 0.2) / 2.0, chunkPos.z * chunkSize.z + chunkSize.z / 2.0);
-        this.rightPlane.rotation.set(0, Math.PI / 2, 0);
-        waterTransform.add(this.rightPlane);
-
-        this.leftPlane = new THREE.Mesh(
-            new THREE.PlaneGeometry(chunkSize.x, waterLevel - 0.2),
-            myshader);
-        this.leftPlane.position.set(chunkPos.x * chunkSize.x + chunkSize.x - 0.1, chunkPos.y * chunkSize.y + (waterLevel - 0.2) / 2.0, chunkPos.z * chunkSize.z + chunkSize.z / 2.0);
-        this.leftPlane.rotation.set(0, Math.PI / 2, 0);
-        waterTransform.add(this.leftPlane);
-
-        this.backwardPlane = new THREE.Mesh(
-            new THREE.PlaneGeometry(chunkSize.x, waterLevel - 0.2),
-            myshader);
-        this.backwardPlane.position.set(chunkPos.x * chunkSize.x + chunkSize.x / 2.0, chunkPos.y * chunkSize.y + (waterLevel - 0.2) / 2.0, chunkPos.z * chunkSize.z + 0.1);
-        waterTransform.add(this.backwardPlane);
-
-        this.forwardPlane = new THREE.Mesh(
-            new THREE.PlaneGeometry(chunkSize.x, waterLevel - 0.2),
-            myshader);
-        this.forwardPlane.position.set(chunkPos.x * chunkSize.x + chunkSize.x / 2.0, chunkPos.y * chunkSize.y + (waterLevel - 0.2) / 2.0, chunkPos.z * chunkSize.z + chunkSize.z - 0.1);
-        waterTransform.add(this.forwardPlane);
-    }
-
-    updateWaterGeometry(right, left, backward, forward) {
-        this.rightPlane.visible = right;
-        this.leftPlane.visible = left;
-        this.backwardPlane.visible = backward;
-        this.forwardPlane.visible = forward;
-    }
-}
-
 export default class World {
-    constructor(worldGen, parameters, gui, renderScene) {
+    constructor(worldGen, parameters, gui, renderScene, waterShader) {
         this.terrainTransform = new THREE.Group();
+        this.depthTransform = new THREE.Group();
         this.waterTransform = new THREE.Group();
         this.renderScene = renderScene;
         this.parameters = parameters;
@@ -386,6 +298,8 @@ export default class World {
         this.create_gui(gui);
         this.create_texture();
 
+        this.waterShader = waterShader;
+
         interrupt = false;
     }
 
@@ -398,6 +312,7 @@ export default class World {
         this.cellIdToWaterMesh = {};
 
         this.terrainTransform.clear();
+        this.depthTransform.clear();
         this.waterTransform.clear();
         interrupt = false;
         this.generate_world();
@@ -470,14 +385,15 @@ export default class World {
             mesh = new THREE.Mesh(geometry, this.material);
             mesh.name = cellId;
             this.cellIdToMesh[cellId] = mesh;
-            this.terrainTransform.add(mesh);
             mesh.position.set(cellX * cellSize.x, cellY * cellSize.y, cellZ * cellSize.z);
+            this.terrainTransform.add(mesh);
+            this.depthTransform.add(mesh.clone());
         }
 
         if (positions.length > 0) {
             let water = this.cellIdToWaterMesh[cellId];
             if (!water) {
-                water = new Water(new THREE.Vector3(cellX, cellY, cellZ), this.waterTransform, cellSize, this.worldGen.biomeParameter.waterLevel);
+                water = new WaterObj(new THREE.Vector3(cellX, cellY, cellZ), this.waterTransform, cellSize, this.worldGen.biomeParameter.waterLevel, this.waterShader);
                 this.cellIdToWaterMesh[cellId] = water;
             }
             water.updateWaterGeometry(

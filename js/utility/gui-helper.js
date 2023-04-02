@@ -31,3 +31,10 @@ export function displayVector(gui, vec, name, min, max)
     folder.add(vec, 'y', min, max);
     folder.add(vec, 'z', min, max);
 }
+
+export function displayVector2(gui, vec, name, min, max)
+{
+    const folder = gui.addFolder(name);
+    folder.add(vec, 'x', min, max);
+    folder.add(vec, 'y', min, max);
+}

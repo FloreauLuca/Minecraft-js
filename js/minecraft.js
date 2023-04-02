@@ -8,6 +8,7 @@ import World from './engine/world.js';
 import Light from './engine/light.js';
 import WorldGeneration from './world-generation.js';
 import SceneRenderer from './engine/scene-renderer.js';
+import * as Water from './engine/water.js';
 
 const cellSize = new THREE.Vector3(16, 32, 16);
 const cellCount = new THREE.Vector3(8, 1, 8);
@@ -22,15 +23,24 @@ const debugParameter = {
     height : 50
 }
 const mapSize = new THREE.Vector3(cellSize.x * cellCount.x, cellSize.y * cellCount.y, cellSize.z * cellCount.z);
-//const seed = Math.random();
-const seed = 0;
+const seed = Math.random();
+//const seed = 0.1633981300688041;
+//const seed = 0;
 
+function drawCommonGUI(gui, controls) {
+    const controlFolder = gui.addFolder("Controls");
+    controlFolder.add(controls, 'autoRotate');
+    controlFolder.add(controls, 'autoRotateSpeed');
+}
 
-export default function main() {
+export default async function main() {
     const stats = new Stats();
     const canvas = document.querySelector('#minecraft');
     const container = document.querySelector('#container');
     container.appendChild(stats.dom);
+
+    const gui = new GUI();
+    gui.close();
 
     const fov = 45;
     const aspect = 2;  // the canvas default
@@ -41,15 +51,7 @@ export default function main() {
 
     const controls = new OrbitControls(camera, canvas);
     controls.target.set(cellSize.x * cellCount.x * 0.5, 0, cellSize.z * cellCount.z * 0.5);
-    // controls.target.set(0, 0, 0);
-    // controls.enableDamping = true;
-
-    // const controls = new FirstPersonControls( camera, renderer.domElement );
-    // controls.movementSpeed = 150;
-    // controls.lookSpeed = 0.1;
-
-    const gui = new GUI();
-    gui.close();
+    drawCommonGUI(gui, controls);
 
     const sceneRenderer = new SceneRenderer(camera);
     const renderScene = sceneRenderer.requestRenderIfNotRequested(sceneRenderer);
@@ -57,11 +59,16 @@ export default function main() {
     controls.addEventListener('change', renderScene);
     window.addEventListener('resize', renderScene);
 
+    const waterShader = await Water.createWaterShader(camera, canvas, sceneRenderer.renderTarget);
+    Water.drawWaterGUI(gui, waterShader);
+
     function update() {
         if (sceneRenderer.resizeRendererToDisplaySize()) {
             const canvas = sceneRenderer.renderer.domElement;
             camera.aspect = canvas.clientWidth / canvas.clientHeight;
             camera.updateProjectionMatrix();
+            waterShader.uniforms.uWidth.value = canvas.clientWidth;
+            waterShader.uniforms.uHeight.value = canvas.clientHeight;
         }
         controls.update();
         stats.update();
@@ -72,9 +79,9 @@ export default function main() {
     update();
 
     const light = new Light(gui, renderScene);
-    sceneRenderer.scene.add(light.ambientLight);
-    sceneRenderer.scene.add(light.directionalLight);
-    sceneRenderer.scene.add(light.directionalLight.target);
+    sceneRenderer.addToScene(light.ambientLight);
+    sceneRenderer.addToScene(light.directionalLight);
+    sceneRenderer.addToScene(light.directionalLight.target);
 
     const worldGen = new WorldGeneration({
         cellSize: cellSize,
@@ -90,9 +97,10 @@ export default function main() {
         cellSize: cellSize,
         cellCount: cellCount
     }
-    const world = new World(worldGen, worldParameters, gui, renderScene);
-    sceneRenderer.scene.add(world.worldGen.debugPlane);
-    sceneRenderer.scene.add(world.terrainTransform);
-    sceneRenderer.scene.add(world.waterTransform);
+    const world = new World(worldGen, worldParameters, gui, renderScene, waterShader);
+    sceneRenderer.addToScene(world.worldGen.debugPlane);
+    sceneRenderer.addToDepthScene(world.depthTransform);
+    sceneRenderer.addToScene(world.terrainTransform);
+    sceneRenderer.addToScene(world.waterTransform);
     console.log("generate_terrain");
 }
