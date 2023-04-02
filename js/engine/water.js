@@ -9,13 +9,13 @@ let shaders = [];
 let utilityShaders = [];
 
 const utilityURL = [
-    '../../data/shader/utility/unity_nodes.glsl',
-    '../../data/shader/utility/water_ref.glsl'
+    './data/shader/utility/unity_nodes.glsl',
+    './data/shader/utility/water_ref.glsl'
 ];
 
 const shadersURL = [
-    '../../data/shader/water/water_shader_vert.glsl',
-    '../../data/shader/water/water_shader_frag.glsl',
+    './data/shader/water/water_shader_vert.glsl',
+    './data/shader/water/water_shader_frag.glsl',
 ];
 
 export async function createWaterShader(camera, canvas, renderTarget) {
